@@ -1,0 +1,17 @@
+# Despliegue automático en Render al hacer push a main
+# Configura en GitHub: Settings → Secrets → RENDER_DEPLOY_HOOK_URL
+# (Render → tu servicio → Settings → Deploy Hook)
+
+name: Deploy Render
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

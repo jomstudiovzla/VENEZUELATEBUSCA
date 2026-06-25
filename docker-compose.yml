@@ -1,0 +1,23 @@
+services:
+  venezuela-te-busca:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - SCRAPER_POLL_INTERVAL=20
+      - TERREMOTO_POLL_INTERVAL=20
+      - DATABASE_URL=sqlite+aiosqlite:////data/ojo_de_dios.db
+    volumes:
+      - app_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  app_data:

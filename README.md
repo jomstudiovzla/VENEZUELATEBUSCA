@@ -40,6 +40,44 @@ chmod +x instalar.sh arrancar.sh
 
 Abrir en el navegador: **http://127.0.0.1:8000/**
 
+## Ver en internet (servidor público)
+
+### Opción A — URL pública inmediata (túnel)
+
+Con el servidor local corriendo (`./arrancar.sh`):
+
+```bash
+chmod +x exponer.sh
+./exponer.sh
+```
+
+Te dará una URL pública `https://xxxx.trycloudflare.com` para compartir al instante.  
+Los workers siguen actualizando en tiempo real desde tu Mac.
+
+### Opción B — Render.com (servidor 24/7 permanente)
+
+1. Crea cuenta en [render.com](https://render.com)
+2. **New → Blueprint** → conecta el repo `VENEZUELATEBUSCA`
+3. Render lee `render.yaml` y despliega automáticamente
+4. Disco persistente de 2 GB guarda BD, fotos y reportes nuevos
+5. Cada `git push` a `main` redespliega (opcional: añade `RENDER_DEPLOY_HOOK_URL` en GitHub Secrets)
+
+Tu URL quedará: `https://venezuela-te-busca.onrender.com` (o similar)
+
+### Opción C — Docker (VPS, Railway, etc.)
+
+```bash
+docker compose up -d --build
+# Abre http://TU-SERVIDOR:8000
+```
+
+Producción manual:
+
+```bash
+chmod +x servidor.sh
+PORT=8000 ./servidor.sh
+```
+
 ### Instalación manual
 
 ```bash
@@ -187,6 +225,17 @@ lsof -ti:8000 | xargs kill -9
 1. Verifica que exista `ojo_de_dios.db` en la carpeta del proyecto.
 2. Revisa: `curl http://127.0.0.1:8000/health`
 3. Si la API externa de desaparecidos está caída (502), el sistema usa la BD local automáticamente.
+
+### Tiempo real en el servidor
+
+En producción los workers arrancan solos y actualizan cada ~20 s:
+
+- Desaparecidos (scraper + WebSocket)
+- Edificios terremotovenezuela.com
+- Fotos nuevas
+- Dashboard `/api/stats/dashboard`
+
+No hace falta subir la BD a GitHub en cada cambio: el servidor sincroniza en vivo desde las APIs.
 
 ### GitHub muestra "Uh oh! There was an error while loading"
 

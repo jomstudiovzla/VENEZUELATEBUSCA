@@ -1,0 +1,16 @@
+.venv/
+.env
+.git/
+__pycache__/
+*.py[cod]
+.DS_Store
+ojo_de_dios.db-shm
+ojo_de_dios.db-wal
+camera_detections.jsonl
+camera_snapshots/*
+!camera_snapshots/.gitkeep
+snapshots/*
+!snapshots/.gitkeep
+weights/
+*.pt
+*.pth

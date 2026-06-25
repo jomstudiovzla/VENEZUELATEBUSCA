@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     terremoto_poll_interval: int = 20
     building_photo_batch_size: int = 6
     building_photo_pause_seconds: float = 2.0
+    host: str = "0.0.0.0"
+    port: int = 8000
+    public_base_url: str = ""
 
     class Config:
         env_file = ".env"

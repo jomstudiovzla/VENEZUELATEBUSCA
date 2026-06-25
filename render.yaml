@@ -1,0 +1,32 @@
+# Despliegue en Render.com — conecta tu repo de GitHub
+# https://dashboard.render.com/ → New → Blueprint → selecciona este repo
+
+services:
+  - type: web
+    name: venezuela-te-busca
+    runtime: docker
+    plan: starter
+    region: virginia
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: venezuela-data
+      mountPath: /data
+      sizeGB: 2
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: HOST
+        value: 0.0.0.0
+      - key: SCRAPER_POLL_INTERVAL
+        value: 20
+      - key: TERREMOTO_POLL_INTERVAL
+        value: 20
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:////data/ojo_de_dios.db
+      - key: PROCESS_PHOTO_EMBEDDINGS
+        value: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
