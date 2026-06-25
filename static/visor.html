@@ -6,6 +6,9 @@
   <title>Venezuela te Busca — En Duelo · SAR 2026</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="" />
   <style>
     :root {
       --bg: #0c0a0b;
@@ -344,44 +347,293 @@
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 0.65rem;
     }
-    .map-panel { padding: 0; }
-    .map-toolbar {
+    .map-panel { padding: 0; overflow: hidden; }
+    .map-shell {
+      display: grid;
+      grid-template-columns: minmax(280px, 340px) 1fr;
+      height: calc(100vh - 300px);
+      min-height: 480px;
+      background: #080a0c;
+    }
+    .map-sidebar {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.65rem 1.5rem;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
       background: var(--panel);
+      min-height: 0;
+    }
+    .map-sidebar-head {
+      padding: 0.85rem 1rem 0.65rem;
       border-bottom: 1px solid var(--line);
-      gap: 1rem;
-      flex-wrap: wrap;
     }
-    .map-toolbar a {
-      color: var(--accent);
-      text-decoration: none;
-      font-size: 0.82rem;
+    .map-sidebar-head h2 {
+      font-family: Bitter, serif;
+      font-size: 0.95rem;
+      margin-bottom: 0.35rem;
     }
-    .map-toolbar a:hover { text-decoration: underline; }
-    .map-frame-wrap {
-      position: relative;
-      height: calc(100vh - 340px);
-      min-height: 400px;
-      background: #0a1018;
+    .map-sidebar-head p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 0.65rem;
     }
-    .map-frame-wrap iframe {
+    .map-search {
       width: 100%;
-      height: 100%;
-      border: none;
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 0.82rem;
+      margin-bottom: 0.55rem;
     }
-    .map-fallback {
-      position: absolute;
-      inset: 0;
+    .map-search:focus {
+      outline: none;
+      border-color: rgba(201,162,39,0.55);
+      box-shadow: 0 0 0 2px rgba(201,162,39,0.12);
+    }
+    .map-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 0.55rem;
+    }
+    .map-chip {
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--muted);
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .map-chip:hover { color: var(--text); border-color: #5a4a4e; }
+    .map-chip.active { color: var(--text); font-weight: 600; }
+    .map-chip.active.parcial { border-color: var(--parcial); background: rgba(212,168,42,0.12); color: var(--parcial); }
+    .map-chip.active.severo { border-color: var(--severo); background: rgba(184,92,32,0.12); color: var(--severo); }
+    .map-chip.active.total { border-color: var(--dano-total); background: rgba(139,26,26,0.18); color: #e8a0a0; }
+    .map-chip.active.all { border-color: var(--accent); background: rgba(201,162,39,0.1); color: var(--accent); }
+    .map-city-select {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 0.78rem;
+    }
+    .map-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+      padding: 0.55rem 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .map-stat {
+      text-align: center;
+      padding: 0.4rem 0.25rem;
+      border-radius: 8px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+    }
+    .map-stat .n { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .map-stat .l { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 0.1rem; }
+    .map-stat.parcial .n { color: var(--parcial); }
+    .map-stat.severo .n { color: var(--severo); }
+    .map-stat.total .n { color: #e09090; }
+    .map-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      min-height: 0;
+    }
+    .map-list-item {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 0.55rem;
+      padding: 0.5rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s, background 0.2s;
+    }
+    .map-list-item:hover { border-color: #5a4a4e; transform: translateX(2px); }
+    .map-list-item.active { border-color: var(--accent); background: rgba(201,162,39,0.08); }
+    .map-list-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #0a1018;
       display: grid;
       place-items: center;
-      text-align: center;
-      padding: 2rem;
+      font-size: 1.2rem;
       color: var(--muted);
-      font-size: 0.9rem;
+      overflow: hidden;
+    }
+    .map-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .map-list-body h4 {
+      font-size: 0.78rem;
+      line-height: 1.3;
+      margin-bottom: 0.15rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .map-list-body p {
+      font-size: 0.68rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .map-list-badge {
+      display: inline-block;
+      margin-top: 0.2rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+    }
+    .map-list-badge.parcial { background: rgba(212,168,42,0.2); color: var(--parcial); }
+    .map-list-badge.severo { background: rgba(184,92,32,0.2); color: var(--severo); }
+    .map-list-badge.total { background: rgba(139,26,26,0.3); color: #e8a0a0; }
+    .map-main {
+      position: relative;
+      min-height: 0;
+    }
+    #leaflet-map {
+      width: 100%;
+      height: 100%;
+      background: #0a1018;
+      z-index: 1;
+    }
+    .map-overlay-bar {
+      position: absolute;
+      top: 0.75rem;
+      left: 0.75rem;
+      right: 0.75rem;
+      z-index: 500;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      justify-content: space-between;
       pointer-events: none;
+    }
+    .map-overlay-bar > * { pointer-events: auto; }
+    .map-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .map-btn {
+      padding: 0.42rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(20,16,18,0.92);
+      color: var(--text);
+      font-size: 0.74rem;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .map-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .map-btn.primary { background: rgba(139,26,26,0.35); border-color: rgba(139,26,26,0.55); }
+    .map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(20,16,18,0.92);
+      font-size: 0.68rem;
+      color: var(--muted);
+      backdrop-filter: blur(6px);
+    }
+    .map-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .map-legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    .map-legend i.p { background: var(--parcial); }
+    .map-legend i.s { background: var(--severo); }
+    .map-legend i.t { background: var(--dano-total); }
+    .map-count-pill {
+      padding: 0.38rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(20,16,18,0.92);
+      font-size: 0.72rem;
+      color: var(--muted);
+      backdrop-filter: blur(6px);
+    }
+    .map-count-pill strong { color: var(--accent); }
+    .leaflet-popup-content-wrapper {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+      border-radius: 10px !important;
+      border: 1px solid var(--line) !important;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.45) !important;
+    }
+    .leaflet-popup-tip { background: var(--panel) !important; }
+    .leaflet-popup-content { margin: 0.65rem 0.75rem !important; line-height: 1.4 !important; }
+    .map-popup h3 { font-family: Bitter, serif; font-size: 0.88rem; margin-bottom: 0.25rem; }
+    .map-popup p { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .map-popup .badge {
+      display: inline-block;
+      padding: 0.12rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 0.45rem;
+    }
+    .map-popup .badge.parcial { background: rgba(212,168,42,0.2); color: var(--parcial); }
+    .map-popup .badge.severo { background: rgba(184,92,32,0.2); color: var(--severo); }
+    .map-popup .badge.total { background: rgba(139,26,26,0.3); color: #e8a0a0; }
+    .map-popup-btns { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .map-popup-btns button, .map-popup-btns a {
+      padding: 0.32rem 0.55rem;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 0.68rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .map-popup-btns button:hover, .map-popup-btns a:hover { border-color: var(--accent); }
+    .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+      background: rgba(201,162,39,0.25) !important;
+    }
+    .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+      background: rgba(139,26,26,0.75) !important;
+      color: #fff !important;
+      font-weight: 700;
+    }
+    @media (max-width: 900px) {
+      .map-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        min-height: 70vh;
+      }
+      .map-sidebar { max-height: 42vh; border-right: none; border-bottom: 1px solid var(--line); }
+      .map-main { min-height: 52vh; }
     }
     footer {
       border-top: 1px solid var(--line);
@@ -772,21 +1024,49 @@
   </div>
 
   <div id="panel-mapa" class="panel map-panel">
-    <div class="map-toolbar">
-      <span>Mapa interactivo oficial — <strong>terremotovenezuela.com</strong></span>
-      <a href="https://terremotovenezuela.com/" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a>
-    </div>
-    <div class="map-frame-wrap">
-      <iframe
-        id="map-iframe"
-        src="https://terremotovenezuela.com/"
-        title="Mapa terremoto Venezuela"
-        loading="lazy"
-        referrerpolicy="no-referrer-when-downgrade"
-      ></iframe>
-      <div class="map-fallback" id="map-fallback" style="display:none">
-        El mapa no puede incrustarse aquí.<br>
-        <a href="https://terremotovenezuela.com/" target="_blank" style="pointer-events:auto">Abrir terremotovenezuela.com ↗</a>
+    <div class="map-shell">
+      <aside class="map-sidebar">
+        <div class="map-sidebar-head">
+          <h2>Mapa de edificios dañados</h2>
+          <p>Explora reportes de <strong>terremotovenezuela.com</strong>. Toca un punto o usa la lista para ver detalles.</p>
+          <input id="map-search" class="map-search" type="search" placeholder="Buscar edificio, dirección, zona…" autocomplete="off" />
+          <div class="map-filters" id="map-filters">
+            <button type="button" class="map-chip active all" data-dmg="">Todos</button>
+            <button type="button" class="map-chip parcial" data-dmg="parcial">Parcial</button>
+            <button type="button" class="map-chip severo" data-dmg="severo">Severo</button>
+            <button type="button" class="map-chip total" data-dmg="total">Colapso</button>
+          </div>
+          <select id="map-city" class="map-city-select" aria-label="Filtrar por ciudad">
+            <option value="">Todas las ciudades</option>
+          </select>
+        </div>
+        <div class="map-stats" id="map-stats">
+          <div class="map-stat parcial"><div class="n" id="map-stat-parcial">0</div><div class="l">Parcial</div></div>
+          <div class="map-stat severo"><div class="n" id="map-stat-severo">0</div><div class="l">Severo</div></div>
+          <div class="map-stat total"><div class="n" id="map-stat-total">0</div><div class="l">Colapso</div></div>
+        </div>
+        <div class="map-list" id="map-list">
+          <div class="empty" style="padding:1rem;font-size:0.8rem">Cargando ubicaciones…</div>
+        </div>
+      </aside>
+      <div class="map-main">
+        <div class="map-overlay-bar">
+          <div class="map-actions">
+            <button type="button" class="map-btn" id="map-btn-center" title="Centrar en Venezuela">◎ Venezuela</button>
+            <button type="button" class="map-btn" id="map-btn-fit" title="Ajustar a todos los puntos">⊞ Ver todos</button>
+            <button type="button" class="map-btn" id="map-btn-refresh">↻ Actualizar</button>
+            <a class="map-btn primary" href="https://terremotovenezuela.com/" target="_blank" rel="noopener">Mapa oficial ↗</a>
+          </div>
+          <div style="display:flex;gap:0.45rem;flex-wrap:wrap;align-items:center">
+            <div class="map-count-pill" id="map-count-pill"><strong>0</strong> en mapa</div>
+            <div class="map-legend">
+              <span><i class="p"></i> Parcial</span>
+              <span><i class="s"></i> Severo</span>
+              <span><i class="t"></i> Colapso</span>
+            </div>
+          </div>
+        </div>
+        <div id="leaflet-map" role="application" aria-label="Mapa interactivo de edificios dañados"></div>
       </div>
     </div>
   </div>
@@ -826,6 +1106,8 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
   <script>
     const API = "";
     const WS_STATUS = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/status_updates`;
@@ -835,6 +1117,15 @@
     let allPersons = [];
     let allBuildings = [];
     let lastLiveStats = null;
+
+    const MAP_DAMAGE_COLORS = { parcial: "#d4a82a", severo: "#b85c20", total: "#8b1a1a" };
+    const VENEZUELA_CENTER = [8.0, -66.5];
+    const VENEZUELA_ZOOM = 6;
+    let mapInstance = null;
+    let mapCluster = null;
+    let mapMarkersById = new Map();
+    let mapState = { damage: "", city: "", search: "", selectedId: null };
+    let mapInitialized = false;
     let tickerItems = ["Esperando datos en tiempo real…"];
 
     const PAGE_SIZE = 100;
@@ -1505,12 +1796,248 @@
       updateCameraPanel(cameraState[idx >= 0 ? idx : cameraState.length - 1]);
     }
 
-    async function loadBuildings() {
-      const res = await fetch(`${API}/api/terremoto/buildings?limit=80`);
+    function buildingHasCoords(b) {
+      const lat = Number(b.lat);
+      const lng = Number(b.lng);
+      return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+    }
+
+    function getMapFilteredBuildings() {
+      const q = mapState.search.trim().toLowerCase();
+      return allBuildings.filter((b) => {
+        if (!buildingHasCoords(b)) return false;
+        if (mapState.damage && b.damage_level !== mapState.damage) return false;
+        if (mapState.city && (b.city || "") !== mapState.city) return false;
+        if (!q) return true;
+        const hay = [b.name, b.address, b.zone, b.city, b.notes].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    function mapPopupHtml(b) {
+      const dmg = b.damage_level || "parcial";
+      const photo = buildingPhotoSrc(b);
+      const img = photo
+        ? `<img src="${photo}" alt="" style="width:100%;max-height:100px;object-fit:cover;border-radius:6px;margin-bottom:0.4rem" onerror="this.style.display='none'">`
+        : "";
+      return `<div class="map-popup">
+        ${img}
+        <h3>${b.name || "Edificio"}</h3>
+        <p>${[b.address, b.zone, b.city].filter(Boolean).join(" · ")}</p>
+        <span class="badge ${dmg}">${dmg}</span>
+        <div class="map-popup-btns">
+          <button type="button" data-map-detail="${b.id || ""}">Ver ficha</button>
+          <a href="https://terremotovenezuela.com/" target="_blank" rel="noopener">Sitio oficial</a>
+        </div>
+      </div>`;
+    }
+
+    function createMapMarker(b) {
+      const dmg = b.damage_level || "parcial";
+      const color = MAP_DAMAGE_COLORS[dmg] || MAP_DAMAGE_COLORS.parcial;
+      const icon = L.divIcon({
+        className: "map-pin-wrap",
+        html: `<span style="width:14px;height:14px;border-radius:50%;background:${color};display:block;border:2px solid rgba(255,255,255,0.85);box-shadow:0 0 0 2px ${color}55,0 2px 8px rgba(0,0,0,0.45)"></span>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const marker = L.marker([Number(b.lat), Number(b.lng)], { icon, title: b.name || "Edificio" });
+      marker.bindPopup(mapPopupHtml(b), { maxWidth: 260, className: "vtb-popup" });
+      marker.on("popupopen", (ev) => {
+        const btn = ev.popup.getElement()?.querySelector("[data-map-detail]");
+        if (btn) btn.onclick = () => openBuildingModal(b);
+        mapState.selectedId = b.id;
+        highlightMapListItem(b.id);
+      });
+      marker.on("click", () => focusBuildingOnMap(b, false));
+      marker._building = b;
+      return marker;
+    }
+
+    function highlightMapListItem(id) {
+      document.querySelectorAll(".map-list-item").forEach((el) => {
+        el.classList.toggle("active", el.dataset.buildingId === String(id || ""));
+      });
+      const active = document.querySelector(`.map-list-item[data-building-id="${id}"]`);
+      if (active) active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    function focusBuildingOnMap(b, openPopup = true) {
+      if (!mapInstance || !buildingHasCoords(b)) return;
+      mapState.selectedId = b.id;
+      highlightMapListItem(b.id);
+      mapInstance.setView([Number(b.lat), Number(b.lng)], Math.max(mapInstance.getZoom(), 14), { animate: true });
+      if (openPopup) {
+        const marker = mapMarkersById.get(String(b.id));
+        if (marker) marker.openPopup();
+      }
+    }
+
+    function updateMapCityFilter() {
+      const select = document.getElementById("map-city");
+      const current = select.value;
+      const cities = [...new Set(allBuildings.map((b) => b.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+      select.innerHTML = '<option value="">Todas las ciudades</option>'
+        + cities.map((c) => `<option value="${c}">${c}</option>`).join("");
+      if (cities.includes(current)) select.value = current;
+    }
+
+    function renderMapList(list) {
+      const container = document.getElementById("map-list");
+      if (!list.length) {
+        container.innerHTML = '<div class="empty" style="padding:1rem;font-size:0.8rem">Sin edificios con coordenadas para este filtro.</div>';
+        return;
+      }
+      container.innerHTML = "";
+      list.slice(0, 80).forEach((b) => {
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = `map-list-item${mapState.selectedId === b.id ? " active" : ""}`;
+        el.dataset.buildingId = b.id || "";
+        const dmg = b.damage_level || "parcial";
+        const src = buildingPhotoSrc(b);
+        const thumb = src
+          ? `<img src="${src}" alt="" loading="lazy" onerror="this.parentElement.textContent='🏢'">`
+          : "🏢";
+        el.innerHTML = `
+          <div class="map-list-thumb">${thumb}</div>
+          <div class="map-list-body">
+            <h4>${b.name || "Edificio sin nombre"}</h4>
+            <p>${[b.address, b.zone].filter(Boolean).join(" · ") || b.city || ""}</p>
+            <span class="map-list-badge ${dmg}">${dmg}</span>
+          </div>`;
+        el.onclick = () => focusBuildingOnMap(b, true);
+        container.appendChild(el);
+      });
+      if (list.length > 80) {
+        const more = document.createElement("div");
+        more.className = "empty";
+        more.style.padding = "0.5rem";
+        more.style.fontSize = "0.72rem";
+        more.textContent = `+ ${list.length - 80} edificios más en el mapa (usa filtros para acotar)`;
+        container.appendChild(more);
+      }
+    }
+
+    function updateMapStats(list) {
+      const counts = { parcial: 0, severo: 0, total: 0 };
+      list.forEach((b) => {
+        const k = b.damage_level || "parcial";
+        if (counts[k] !== undefined) counts[k] += 1;
+      });
+      document.getElementById("map-stat-parcial").textContent = fmt(counts.parcial);
+      document.getElementById("map-stat-severo").textContent = fmt(counts.severo);
+      document.getElementById("map-stat-total").textContent = fmt(counts.total);
+      const totalCoords = allBuildings.filter(buildingHasCoords).length;
+      document.getElementById("map-count-pill").innerHTML =
+        `<strong>${fmt(list.length)}</strong> visibles · ${fmt(totalCoords)} con GPS`;
+    }
+
+    function refreshMapMarkers() {
+      if (!mapInstance || !mapCluster) return;
+      const list = getMapFilteredBuildings();
+      mapCluster.clearLayers();
+      mapMarkersById.clear();
+      const bounds = [];
+      list.forEach((b) => {
+        const marker = createMapMarker(b);
+        mapCluster.addLayer(marker);
+        mapMarkersById.set(String(b.id), marker);
+        bounds.push([Number(b.lat), Number(b.lng)]);
+      });
+      updateMapStats(list);
+      renderMapList(list);
+      if (bounds.length && document.getElementById("panel-mapa").classList.contains("active")) {
+        if (bounds.length === 1) {
+          mapInstance.setView(bounds[0], 14);
+        }
+      }
+    }
+
+    function fitMapToMarkers() {
+      if (!mapInstance || !mapCluster) return;
+      const list = getMapFilteredBuildings();
+      if (!list.length) {
+        mapInstance.setView(VENEZUELA_CENTER, VENEZUELA_ZOOM);
+        return;
+      }
+      const bounds = L.latLngBounds(list.map((b) => [Number(b.lat), Number(b.lng)]));
+      mapInstance.fitBounds(bounds.pad(0.12), { maxZoom: 13, animate: true });
+    }
+
+    function initMap() {
+      if (mapInitialized) {
+        mapInstance.invalidateSize();
+        refreshMapMarkers();
+        return;
+      }
+      const el = document.getElementById("leaflet-map");
+      if (!el || typeof L === "undefined") return;
+
+      mapInstance = L.map("leaflet-map", {
+        center: VENEZUELA_CENTER,
+        zoom: VENEZUELA_ZOOM,
+        zoomControl: true,
+        scrollWheelZoom: true,
+      });
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> · Carto',
+        subdomains: "abcd",
+        maxZoom: 19,
+      }).addTo(mapInstance);
+
+      mapCluster = L.markerClusterGroup({
+        showCoverageOnHover: false,
+        maxClusterRadius: 42,
+        spiderfyOnMaxZoom: true,
+      });
+      mapInstance.addLayer(mapCluster);
+
+      mapInitialized = true;
+      setTimeout(() => {
+        mapInstance.invalidateSize();
+        refreshMapMarkers();
+        fitMapToMarkers();
+      }, 120);
+    }
+
+    function bindMapControls() {
+      document.getElementById("map-search").addEventListener("input", (e) => {
+        mapState.search = e.target.value;
+        refreshMapMarkers();
+      });
+      document.getElementById("map-city").addEventListener("change", (e) => {
+        mapState.city = e.target.value;
+        refreshMapMarkers();
+      });
+      document.querySelectorAll("#map-filters .map-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          document.querySelectorAll("#map-filters .map-chip").forEach((c) => c.classList.remove("active"));
+          chip.classList.add("active");
+          mapState.damage = chip.dataset.dmg || "";
+          refreshMapMarkers();
+        });
+      });
+      document.getElementById("map-btn-center").onclick = () => {
+        if (mapInstance) mapInstance.setView(VENEZUELA_CENTER, VENEZUELA_ZOOM, { animate: true });
+      };
+      document.getElementById("map-btn-fit").onclick = fitMapToMarkers;
+      document.getElementById("map-btn-refresh").onclick = () => loadBuildings(true);
+    }
+
+    async function loadBuildings(refreshMap = false) {
+      const res = await fetch(`${API}/api/terremoto/buildings?limit=200`);
       const data = await res.json();
       allBuildings = data.buildings || [];
       renderBuildings();
       renderUnified();
+      updateMapCityFilter();
+      if (mapInitialized || document.getElementById("panel-mapa").classList.contains("active")) {
+        if (!mapInitialized) initMap();
+        else refreshMapMarkers();
+        if (refreshMap) fitMapToMarkers();
+      }
     }
 
     function connectWs() {
@@ -1545,6 +2072,8 @@
           allBuildings = mergeBuildings([d], allBuildings);
           renderBuildings();
           renderUnified();
+          updateMapCityFilter();
+          if (mapInitialized) refreshMapMarkers();
           if (msg.event === "building_photo_ready") {
             const card = document.querySelector(`#buildings-grid .card[data-building-id="${d.id}"]`);
             if (card) applyBuildingPhoto(card, d);
@@ -1624,6 +2153,9 @@
         document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
         tab.classList.add("active");
         document.getElementById(`panel-${tab.dataset.tab}`).classList.add("active");
+        if (tab.dataset.tab === "mapa") {
+          setTimeout(() => initMap(), 80);
+        }
       };
     });
 
@@ -1652,9 +2184,7 @@
       if (e.target.id === "person-modal") closePersonModal();
     };
 
-    document.getElementById("map-iframe").onerror = () => {
-      document.getElementById("map-fallback").style.display = "grid";
-    };
+    bindMapControls();
 
     loadLiveStats();
     loadPhotoStats();

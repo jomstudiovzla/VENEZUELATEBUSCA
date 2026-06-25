@@ -701,7 +701,7 @@ async def terremoto_buildings(
 ):
     async with TerremotoVenezuelaClient() as client:
         buildings = await client.fetch_buildings(
-            limit=min(limit, 100),
+            limit=min(limit, 200),
             damage_level=damage_level,
             search=search,
         )
