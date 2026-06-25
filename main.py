@@ -813,6 +813,66 @@ async def _refresh_live_stats_if_needed() -> None:
         logger.exception("Error refrescando stats en vivo en segundo plano")
 
 
+def _filter_buildings_list(
+    buildings: list[dict[str, Any]],
+    *,
+    damage_level: Optional[str] = None,
+    city: Optional[str] = None,
+    zone: Optional[str] = None,
+    search: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    result = buildings
+    if damage_level:
+        result = [b for b in result if b.get("damage_level") == damage_level]
+    if city:
+        city_l = city.lower()
+        result = [b for b in result if (b.get("city") or "").lower() == city_l]
+    if zone:
+        zone_l = zone.lower()
+        result = [
+            b
+            for b in result
+            if (b.get("zone") or "").lower() == zone_l
+            or zone_l in (b.get("address") or "").lower()
+        ]
+    if search:
+        needle = search.lower()
+        result = [
+            b
+            for b in result
+            if needle in (b.get("name") or "").lower()
+            or needle in (b.get("address") or "").lower()
+            or needle in (b.get("city") or "").lower()
+            or needle in (b.get("zone") or "").lower()
+        ]
+    return result
+
+
+async def _fetch_merged_buildings(
+    session: AsyncSession,
+    *,
+    api_limit: int = 200,
+    damage_level: Optional[str] = None,
+    search: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    async with TerremotoVenezuelaClient() as client:
+        buildings = await client.fetch_buildings(
+            limit=min(api_limit, 500),
+            damage_level=damage_level,
+            search=search,
+        )
+    enriched = [enrich_building(b) for b in buildings]
+    local_reports = await list_building_reports(session, limit=500)
+    merged: dict[str, dict[str, Any]] = {b["id"]: b for b in local_reports}
+    for building in enriched:
+        merged.setdefault(building["id"], building)
+    return sorted(
+        merged.values(),
+        key=lambda item: item.get("last_updated_at") or "",
+        reverse=True,
+    )
+
+
 @app.get("/api/terremoto/buildings")
 async def terremoto_buildings(
     limit: int = 50,
@@ -820,40 +880,78 @@ async def terremoto_buildings(
     search: Optional[str] = None,
     session: AsyncSession = Depends(get_session),
 ):
-    async with TerremotoVenezuelaClient() as client:
-        buildings = await client.fetch_buildings(
-            limit=min(limit, 200),
-            damage_level=damage_level,
-            search=search,
+    combined = await _fetch_merged_buildings(
+        session,
+        api_limit=min(limit, 200),
+        damage_level=damage_level,
+        search=search,
+    )
+    if damage_level or search:
+        combined = _filter_buildings_list(
+            combined, damage_level=damage_level, search=search
         )
-    enriched = [enrich_building(b) for b in buildings]
-    local_reports = await list_building_reports(session, limit=200)
-    if damage_level:
-        local_reports = [b for b in local_reports if b.get("damage_level") == damage_level]
-    if search:
-        needle = search.lower()
-        local_reports = [
-            b
-            for b in local_reports
-            if needle in (b.get("name") or "").lower()
-            or needle in (b.get("address") or "").lower()
-            or needle in (b.get("city") or "").lower()
-            or needle in (b.get("zone") or "").lower()
-        ]
-    merged: dict[str, dict[str, Any]] = {b["id"]: b for b in local_reports}
-    for building in enriched:
-        merged.setdefault(building["id"], building)
-    combined = sorted(
-        merged.values(),
-        key=lambda item: item.get("last_updated_at") or "",
-        reverse=True,
-    )[: min(limit, 200)]
+    combined = combined[: min(limit, 200)]
+    local_count = sum(1 for b in combined if b.get("is_local_report"))
     return {
         "fuente": "https://terremotovenezuela.com/",
         "carpeta_fotos": str(BUILDING_PHOTOS_DIR.resolve()),
         "count": len(combined),
-        "reportes_locales": len(local_reports),
+        "reportes_locales": local_count,
         "buildings": combined,
+    }
+
+
+@app.get("/api/terremoto/map")
+async def terremoto_map_data(
+    city: Optional[str] = None,
+    zone: Optional[str] = None,
+    damage_level: Optional[str] = None,
+    search: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    """Datos del mapa en tiempo real con filtros por ciudad, zona/sector y daño."""
+    combined = await _fetch_merged_buildings(session, api_limit=500)
+    filtered = _filter_buildings_list(
+        combined,
+        damage_level=damage_level,
+        city=city,
+        zone=zone,
+        search=search,
+    )
+
+    def _has_coords(b: dict[str, Any]) -> bool:
+        try:
+            lat, lng = float(b.get("lat")), float(b.get("lng"))
+            return abs(lat) <= 90 and abs(lng) <= 180
+        except (TypeError, ValueError):
+            return False
+
+    with_coords = [b for b in filtered if _has_coords(b)]
+    cities = sorted({b.get("city") for b in combined if b.get("city")})
+    zones = sorted({b.get("zone") for b in combined if b.get("zone")})
+    if city:
+        zones = sorted(
+            {
+                b.get("zone")
+                for b in combined
+                if b.get("zone") and (b.get("city") or "").lower() == city.lower()
+            }
+        )
+    zone_counts: dict[str, int] = {}
+    for b in with_coords:
+        key = b.get("zone") or "Sin zona"
+        zone_counts[key] = zone_counts.get(key, 0) + 1
+    top_zones = sorted(zone_counts.items(), key=lambda x: -x[1])[:12]
+
+    return {
+        "fetched_at": datetime.now().isoformat(),
+        "fuente": "https://terremotovenezuela.com/",
+        "count": len(filtered),
+        "with_coords": len(with_coords),
+        "cities": cities,
+        "zones": zones,
+        "top_zones": [{"zone": z, "count": c} for z, c in top_zones],
+        "buildings": filtered,
     }
 
 

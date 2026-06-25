@@ -423,6 +423,62 @@
       color: var(--text);
       font-size: 0.78rem;
     }
+    .map-filter-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+      margin-top: 0.45rem;
+    }
+    .map-zone-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.45rem;
+      max-height: 88px;
+      overflow-y: auto;
+    }
+    .map-zone-chip {
+      padding: 0.22rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--muted);
+      font-size: 0.65rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .map-zone-chip:hover { color: var(--text); border-color: #5a4a4e; }
+    .map-zone-chip.active {
+      border-color: var(--accent);
+      background: rgba(201,162,39,0.12);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .map-zone-chip .cnt { opacity: 0.75; margin-left: 0.15rem; }
+    .map-live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid #2a6b4d;
+      background: rgba(26,77,53,0.25);
+      color: var(--localizado);
+      font-size: 0.68rem;
+      white-space: nowrap;
+    }
+    .map-live-pill.flash { animation: pulse-pill 0.5s ease; }
+    .map-live-pill .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--localizado);
+      animation: map-pulse 1.4s ease infinite;
+    }
+    @keyframes map-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
     .map-stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1471,9 +1527,15 @@
             <button type="button" class="map-chip severo" data-dmg="severo">Severo</button>
             <button type="button" class="map-chip total" data-dmg="total">Colapso</button>
           </div>
-          <select id="map-city" class="map-city-select" aria-label="Filtrar por ciudad">
-            <option value="">Todas las ciudades</option>
-          </select>
+          <div class="map-filter-row">
+            <select id="map-city" class="map-city-select" aria-label="Filtrar por ciudad">
+              <option value="">Todas las ciudades</option>
+            </select>
+            <select id="map-zone" class="map-city-select" aria-label="Filtrar por zona o sector">
+              <option value="">Todas las zonas</option>
+            </select>
+          </div>
+          <div class="map-zone-chips" id="map-zone-chips" aria-label="Sectores frecuentes"></div>
         </div>
         <div class="map-stats" id="map-stats">
           <div class="map-stat parcial"><div class="n" id="map-stat-parcial">0</div><div class="l">Parcial</div></div>
@@ -1493,6 +1555,7 @@
             <a class="map-btn primary" href="https://terremotovenezuela.com/" target="_blank" rel="noopener">Mapa oficial ↗</a>
           </div>
           <div style="display:flex;gap:0.45rem;flex-wrap:wrap;align-items:center">
+            <span class="map-live-pill" id="map-live-pill"><span class="dot"></span><span id="map-live-text">Mapa en vivo</span></span>
             <div class="map-count-pill" id="map-count-pill"><strong>0</strong> en mapa</div>
             <div class="map-legend">
               <span><i class="p"></i> Parcial</span>
@@ -1688,8 +1751,11 @@
     let mapInstance = null;
     let mapCluster = null;
     let mapMarkersById = new Map();
-    let mapState = { damage: "", city: "", search: "", selectedId: null };
+    let mapState = { damage: "", city: "", zone: "", search: "", selectedId: null };
     let mapInitialized = false;
+    let mapPollTimer = null;
+    let mapMeta = { top_zones: [], fetched_at: null };
+    const MAP_POLL_MS = 10000;
     let emergencyData = null;
     let tickerItems = ["Esperando datos en tiempo real…"];
 
@@ -2407,16 +2473,35 @@
       return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
     }
 
-    function getMapFilteredBuildings() {
+    function buildingMatchesMapFilters(b, includeCoords = true) {
+      if (includeCoords && !buildingHasCoords(b)) return false;
+      if (mapState.damage && b.damage_level !== mapState.damage) return false;
+      if (mapState.city && (b.city || "") !== mapState.city) return false;
+      if (mapState.zone) {
+        const zone = (b.zone || "").toLowerCase();
+        const addr = (b.address || "").toLowerCase();
+        const needle = mapState.zone.toLowerCase();
+        if (zone !== needle && !addr.includes(needle)) return false;
+      }
       const q = mapState.search.trim().toLowerCase();
-      return allBuildings.filter((b) => {
-        if (!buildingHasCoords(b)) return false;
-        if (mapState.damage && b.damage_level !== mapState.damage) return false;
-        if (mapState.city && (b.city || "") !== mapState.city) return false;
-        if (!q) return true;
-        const hay = [b.name, b.address, b.zone, b.city, b.notes].filter(Boolean).join(" ").toLowerCase();
-        return hay.includes(q);
-      });
+      if (!q) return true;
+      const hay = [b.name, b.address, b.zone, b.city, b.notes].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }
+
+    function getMapFilteredBuildings() {
+      return allBuildings.filter((b) => buildingMatchesMapFilters(b, true));
+    }
+
+    function setMapLiveStatus(fetchedAt, count) {
+      const pill = document.getElementById("map-live-pill");
+      const text = document.getElementById("map-live-text");
+      if (!pill || !text) return;
+      const at = fetchedAt ? new Date(fetchedAt).toLocaleTimeString("es-VE") : new Date().toLocaleTimeString("es-VE");
+      text.textContent = `En vivo · ${fmt(count)} pts · ${at}`;
+      pill.classList.remove("flash");
+      void pill.offsetWidth;
+      pill.classList.add("flash");
     }
 
     function mapPopupHtml(b) {
@@ -2485,6 +2570,66 @@
       select.innerHTML = '<option value="">Todas las ciudades</option>'
         + cities.map((c) => `<option value="${c}">${c}</option>`).join("");
       if (cities.includes(current)) select.value = current;
+      updateMapZoneFilter();
+    }
+
+    function updateMapZoneFilter() {
+      const select = document.getElementById("map-zone");
+      const current = mapState.zone || select.value;
+      let zones = allBuildings.map((b) => b.zone).filter(Boolean);
+      if (mapState.city) {
+        zones = allBuildings
+          .filter((b) => (b.city || "") === mapState.city)
+          .map((b) => b.zone)
+          .filter(Boolean);
+      }
+      const unique = [...new Set(zones)].sort((a, b) => a.localeCompare(b, "es"));
+      select.innerHTML = '<option value="">Todas las zonas</option>'
+        + unique.map((z) => `<option value="${z}">${z}</option>`).join("");
+      if (unique.includes(current)) {
+        select.value = current;
+        mapState.zone = current;
+      } else if (!current) {
+        select.value = "";
+        mapState.zone = "";
+      }
+      renderMapZoneChips();
+    }
+
+    function renderMapZoneChips() {
+      const container = document.getElementById("map-zone-chips");
+      if (!container) return;
+      const counts = new Map();
+      allBuildings.forEach((b) => {
+        if (!buildingHasCoords(b)) return;
+        if (mapState.city && (b.city || "") !== mapState.city) return;
+        if (mapState.damage && b.damage_level !== mapState.damage) return;
+        const key = b.zone || "Sin zona";
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      const top = (mapMeta.top_zones?.length
+        ? mapMeta.top_zones
+        : [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([zone, count]) => ({ zone, count }))
+      ).filter((z) => z.zone !== "Sin zona" || counts.has("Sin zona"));
+
+      if (!top.length) {
+        container.innerHTML = "";
+        return;
+      }
+      container.innerHTML = "";
+      top.slice(0, 10).forEach(({ zone, count }) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `map-zone-chip${mapState.zone === zone ? " active" : ""}`;
+        chip.innerHTML = `${zone}<span class="cnt">${count}</span>`;
+        chip.onclick = () => {
+          mapState.zone = mapState.zone === zone ? "" : zone;
+          document.getElementById("map-zone").value = mapState.zone;
+          renderMapZoneChips();
+          refreshMapMarkers();
+        };
+        container.appendChild(chip);
+      });
     }
 
     function renderMapList(list) {
@@ -2538,6 +2683,29 @@
         `<strong>${fmt(list.length)}</strong> visibles · ${fmt(totalCoords)} con GPS`;
     }
 
+    function upsertMapMarker(b) {
+      if (!mapInstance || !mapCluster) return;
+      const id = String(b.id);
+      const existing = mapMarkersById.get(id);
+      if (!buildingMatchesMapFilters(b, true)) {
+        if (existing) {
+          mapCluster.removeLayer(existing);
+          mapMarkersById.delete(id);
+        }
+        const list = getMapFilteredBuildings();
+        updateMapStats(list);
+        renderMapList(list);
+        return;
+      }
+      if (existing) mapCluster.removeLayer(existing);
+      const marker = createMapMarker(b);
+      mapCluster.addLayer(marker);
+      mapMarkersById.set(id, marker);
+      const list = getMapFilteredBuildings();
+      updateMapStats(list);
+      renderMapList(list);
+    }
+
     function refreshMapMarkers() {
       if (!mapInstance || !mapCluster) return;
       const list = getMapFilteredBuildings();
@@ -2552,10 +2720,50 @@
       });
       updateMapStats(list);
       renderMapList(list);
+      renderMapZoneChips();
       if (bounds.length && document.getElementById("panel-mapa").classList.contains("active")) {
         if (bounds.length === 1) {
           mapInstance.setView(bounds[0], 14);
         }
+      }
+    }
+
+    async function loadMapBuildings(fit = false) {
+      try {
+        const res = await fetch(`${API}/api/terremoto/map`);
+        const data = await res.json();
+        allBuildings = mergeBuildings(data.buildings || [], allBuildings);
+        mapMeta = {
+          top_zones: data.top_zones || [],
+          fetched_at: data.fetched_at,
+        };
+        setMapLiveStatus(data.fetched_at, data.with_coords ?? getMapFilteredBuildings().length);
+        updateMapCityFilter();
+        if (mapInitialized || document.getElementById("panel-mapa").classList.contains("active")) {
+          if (!mapInitialized) initMap();
+          else refreshMapMarkers();
+          if (fit) fitMapToMarkers();
+        }
+      } catch {
+        const text = document.getElementById("map-live-text");
+        if (text) text.textContent = "Mapa: sin conexión";
+      }
+    }
+
+    function startMapRealtime() {
+      stopMapRealtime();
+      loadMapBuildings(false);
+      mapPollTimer = setInterval(() => {
+        if (document.getElementById("panel-mapa").classList.contains("active")) {
+          loadMapBuildings(false);
+        }
+      }, MAP_POLL_MS);
+    }
+
+    function stopMapRealtime() {
+      if (mapPollTimer) {
+        clearInterval(mapPollTimer);
+        mapPollTimer = null;
       }
     }
 
@@ -2804,12 +3012,22 @@
     }
 
     function bindMapControls() {
+      let mapSearchDebounce = null;
       document.getElementById("map-search").addEventListener("input", (e) => {
         mapState.search = e.target.value;
-        refreshMapMarkers();
+        clearTimeout(mapSearchDebounce);
+        mapSearchDebounce = setTimeout(() => refreshMapMarkers(), 200);
       });
       document.getElementById("map-city").addEventListener("change", (e) => {
         mapState.city = e.target.value;
+        mapState.zone = "";
+        document.getElementById("map-zone").value = "";
+        updateMapZoneFilter();
+        refreshMapMarkers();
+      });
+      document.getElementById("map-zone").addEventListener("change", (e) => {
+        mapState.zone = e.target.value;
+        renderMapZoneChips();
         refreshMapMarkers();
       });
       document.querySelectorAll("#map-filters .map-chip").forEach((chip) => {
@@ -2817,6 +3035,7 @@
           document.querySelectorAll("#map-filters .map-chip").forEach((c) => c.classList.remove("active"));
           chip.classList.add("active");
           mapState.damage = chip.dataset.dmg || "";
+          renderMapZoneChips();
           refreshMapMarkers();
         });
       });
@@ -2824,13 +3043,13 @@
         if (mapInstance) mapInstance.setView(VENEZUELA_CENTER, VENEZUELA_ZOOM, { animate: true });
       };
       document.getElementById("map-btn-fit").onclick = fitMapToMarkers;
-      document.getElementById("map-btn-refresh").onclick = () => loadBuildings(true);
+      document.getElementById("map-btn-refresh").onclick = () => loadMapBuildings(true);
     }
 
     async function loadBuildings(refreshMap = false) {
       const res = await fetch(`${API}/api/terremoto/buildings?limit=200`);
       const data = await res.json();
-      allBuildings = data.buildings || [];
+      allBuildings = mergeBuildings(data.buildings || [], allBuildings);
       renderBuildings();
       renderUnified();
       updateMapCityFilter();
@@ -2878,7 +3097,8 @@
           renderBuildings();
           renderUnified();
           updateMapCityFilter();
-          if (mapInitialized) refreshMapMarkers();
+          if (mapInitialized) upsertMapMarker(d);
+          setMapLiveStatus(new Date().toISOString(), getMapFilteredBuildings().length);
           if (msg.event === "building_photo_ready") {
             const card = document.querySelector(`#buildings-grid .card[data-building-id="${d.id}"]`);
             if (card) applyBuildingPhoto(card, d);
@@ -3110,7 +3330,12 @@
         tab.classList.add("active");
         document.getElementById(`panel-${tab.dataset.tab}`).classList.add("active");
         if (tab.dataset.tab === "mapa") {
-          setTimeout(() => initMap(), 80);
+          setTimeout(() => {
+            initMap();
+            startMapRealtime();
+          }, 80);
+        } else {
+          stopMapRealtime();
         }
         if (tab.dataset.tab === "emergencias" && !emergencyData) {
           loadEmergencias();
@@ -3153,12 +3378,16 @@
     resetPersonList();
     loadPersonsPage(true);
     loadBuildings();
+    loadMapBuildings(false);
     loadCameras();
     connectWs();
     setInterval(loadDashboard, 8000);
     setInterval(loadLiveStats, 20000);
     setInterval(loadBuildings, 30000);
     setInterval(loadCameras, 12000);
+    if (document.getElementById("panel-mapa").classList.contains("active")) {
+      startMapRealtime();
+    }
   </script>
 </body>
 </html>
