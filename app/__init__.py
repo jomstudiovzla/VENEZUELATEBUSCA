@@ -1,0 +1,1 @@
+"""Ojo de Dios — Centro de Comando SAR-DVI (crowdsourcing autorizado)."""

@@ -20,6 +20,10 @@ camera_snapshots/*
 snapshots/*
 !snapshots/.gitkeep
 
+# Uploads en runtime (evidencia voluntaria)
+uploads/*
+!uploads/.gitkeep
+
 # Logs de runtime
 camera_detections.jsonl
 

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a1628" />
+  <title>Ojo de Dios — Centro de Comando SAR-DVI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #0a1628;
+      --panel: #111f35;
+      --panel2: #162744;
+      --border: rgba(255,210,90,0.18);
+      --gold: #e8c547;
+      --gold-dim: #a68b2e;
+      --red: #c43b3b;
+      --green: #2d9d6b;
+      --blue: #3d8fd9;
+      --text: #e8edf5;
+      --muted: #8fa3bf;
+      --sidebar-w: 260px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .layout { display: flex; height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: linear-gradient(180deg, #0d1e36 0%, #091525 100%);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .brand {
+      padding: 1.4rem 1.2rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand h1 {
+      font-family: Bitter, serif;
+      font-size: 1.15rem;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+    }
+    .brand p { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; line-height: 1.4; }
+    .nav { flex: 1; padding: 0.8rem 0.6rem; display: flex; flex-direction: column; gap: 0.25rem; }
+    .nav-btn {
+      display: flex; align-items: center; gap: 0.65rem;
+      width: 100%; padding: 0.75rem 0.9rem;
+      background: transparent; border: 1px solid transparent;
+      border-radius: 8px; color: var(--muted);
+      font-size: 0.85rem; cursor: pointer; text-align: left;
+      transition: all 0.15s;
+    }
+    .nav-btn:hover { background: rgba(232,197,71,0.06); color: var(--text); }
+    .nav-btn.active {
+      background: rgba(232,197,71,0.12);
+      border-color: var(--border);
+      color: var(--gold);
+    }
+    .nav-btn .icon { font-size: 1.1rem; width: 1.4rem; text-align: center; }
+    .sidebar-foot {
+      padding: 1rem; border-top: 1px solid var(--border);
+      font-size: 0.7rem; color: var(--muted);
+    }
+    .ws-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0.6rem; border-radius: 99px;
+      font-size: 0.68rem; margin-top: 0.5rem;
+    }
+    .ws-pill.on { background: rgba(45,157,107,0.2); color: var(--green); }
+    .ws-pill.off { background: rgba(196,59,59,0.2); color: var(--red); }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.9rem 1.4rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(17,31,53,0.8);
+    }
+    .topbar h2 { font-family: Bitter, serif; font-size: 1.05rem; }
+    .stats-row { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--muted); }
+    .stats-row strong { color: var(--gold); }
+    .content { flex: 1; overflow-y: auto; padding: 1.2rem 1.4rem; }
+
+    /* Panels */
+    .panel { display: none; animation: fadeIn 0.25s ease; }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .card h3 { font-family: Bitter, serif; font-size: 0.95rem; color: var(--gold); margin-bottom: 0.8rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .sidebar { width: 72px; } .nav-btn span.label { display: none; } }
+
+    #sos-map { height: 420px; border-radius: 10px; border: 1px solid var(--border); }
+
+    .list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .list-item {
+      display: flex; gap: 1rem; align-items: flex-start;
+      padding: 0.85rem; background: var(--panel2);
+      border-radius: 8px; border: 1px solid rgba(255,255,255,0.04);
+    }
+    .list-item img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; background: #0a1628; }
+    .list-item .meta { flex: 1; font-size: 0.82rem; }
+    .list-item .meta strong { display: block; color: var(--text); margin-bottom: 0.2rem; }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+      font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge-trapped { background: rgba(196,59,59,0.25); color: #ff8a8a; }
+    .badge-safe { background: rgba(45,157,107,0.25); color: #7dffb0; }
+    .badge-match { background: rgba(45,157,107,0.35); color: #fff; }
+
+    form { display: flex; flex-direction: column; gap: 0.65rem; }
+    label { font-size: 0.75rem; color: var(--muted); }
+    input, textarea, select {
+      background: #0a1628; border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.55rem 0.75rem;
+      color: var(--text); font-size: 0.85rem; font-family: inherit;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .btn {
+      background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+      color: #0a1628; border: none; border-radius: 6px;
+      padding: 0.65rem 1.2rem; font-weight: 600; font-size: 0.85rem;
+      cursor: pointer; align-self: flex-start;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn-secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+    .check-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+
+    /* Match banner */
+    #match-banner {
+      display: none; position: fixed; inset: 0; z-index: 9999;
+      background: rgba(10,22,40,0.92);
+      align-items: center; justify-content: center; flex-direction: column;
+      text-align: center; padding: 2rem;
+    }
+    #match-banner.show { display: flex; animation: pulseBg 1.5s ease infinite alternate; }
+    @keyframes pulseBg { from { background: rgba(10,22,40,0.92); } to { background: rgba(20,60,40,0.95); } }
+    #match-banner h2 {
+      font-family: Bitter, serif; font-size: clamp(2rem, 6vw, 3.5rem);
+      color: #7dffb0; text-shadow: 0 0 40px rgba(45,157,107,0.6);
+      margin-bottom: 1rem;
+    }
+    #match-banner p { font-size: 1.1rem; max-width: 520px; line-height: 1.5; }
+    #match-banner .btn { margin-top: 1.5rem; }
+
+    .empty { color: var(--muted); font-size: 0.85rem; padding: 2rem; text-align: center; }
+    .drone-view {
+      height: 300px; background: #0a1628; border-radius: 10px;
+      border: 1px dashed var(--border);
+      display: grid; place-items: center; color: var(--muted); font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="match-banner" role="alert">
+    <h2>¡VÍCTIMA IDENTIFICADA!</h2>
+    <p id="match-text">Coincidencia forense detectada por biometría blanda.</p>
+    <button class="btn" onclick="closeMatchBanner()">Continuar operación</button>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Ojo de Dios</h1>
+        <p>Centro de Comando SAR-DVI · Venezuela 2026<br>Crowdsourcing autorizado</p>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-panel="sos"><span class="icon">🆘</span><span class="label">Mapa SOS</span></button>
+        <button class="nav-btn" data-panel="triage"><span class="icon">🏥</span><span class="label">Triaje Hospitales</span></button>
+        <button class="nav-btn" data-panel="cctv"><span class="icon">📹</span><span class="label">Red Voluntaria CCTV</span></button>
+        <button class="nav-btn" data-panel="evidence"><span class="icon">📱</span><span class="label">Evidencia Ciudadana</span></button>
+        <button class="nav-btn" data-panel="drones"><span class="icon">🛸</span><span class="label">Mapeo de Drones</span></button>
+      </nav>
+      <div class="sidebar-foot">
+        Modo: consentimiento ciudadano<br>
+        <span id="ws-pill" class="ws-pill off">● WS desconectado</span>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <h2 id="panel-title">Mapa de Calor SOS</h2>
+        <div class="stats-row" id="summary-stats">Cargando…</div>
+      </header>
+      <div class="content">
+
+        <!-- SOS -->
+        <section class="panel active" id="panel-sos">
+          <div class="grid-2">
+            <div class="card">
+              <h3>Alertas P2P en tiempo real</h3>
+              <div id="sos-map"></div>
+            </div>
+            <div class="card">
+              <h3>Botón de Pánico (PWA)</h3>
+              <form id="form-sos">
+                <label>Estado vital</label>
+                <select name="vital_status" required>
+                  <option value="Atrapado">Atrapado — necesito rescate</option>
+                  <option value="A salvo">A salvo — reporte de ubicación</option>
+                </select>
+                <label>Latitud GPS</label>
+                <input name="lat" type="number" step="any" placeholder="10.50" required />
+                <label>Longitud GPS</label>
+                <input name="lng" type="number" step="any" placeholder="-66.90" required />
+                <label>Mensaje (opcional)</label>
+                <textarea name="message" placeholder="Edificio, piso, número de personas…"></textarea>
+                <label>Teléfono de contacto</label>
+                <input name="contact_phone" placeholder="0412-0000000" />
+                <button type="button" class="btn btn-secondary" onclick="useMyLocation()">📍 Usar mi ubicación</button>
+                <button type="submit" class="btn">Enviar señal SOS</button>
+              </form>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Señales activas</h3>
+            <div class="list" id="sos-list"><div class="empty">Sin señales SOS activas</div></div>
+          </div>
+        </section>
+
+        <!-- Triage -->
+        <section class="panel" id="panel-triage">
+          <div class="grid-2">
+            <div class="card">
+              <h3>Registrar John Doe — Triaje hospitalario</h3>
+              <form id="form-triage" enctype="multipart/form-data">
+                <label>Hospital</label>
+                <input name="hospital_name" required placeholder="Hospital Central" />
+                <label>Servicio / Piso</label>
+                <input name="ward" placeholder="Urgencias / Piso 3" />
+                <label>Notas clínicas</label>
+                <textarea name="clinical_notes" placeholder="Tatuajes visibles, contexto de ingreso…"></textarea>
+                <label>Fotografía del paciente (obligatoria)</label>
+                <input name="photo" type="file" accept="image/*" required />
+                <button type="submit" class="btn">Registrar y analizar biometría</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Pacientes John Doe — Análisis IA</h3>
+              <div class="list" id="triage-list"><div class="empty">Sin registros de triaje</div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CCTV -->
+        <section class="panel" id="panel-cctv">
+          <div class="grid-2">
+            <div class="card">
+              <h3>Protege tu Barrio — Registro voluntario (ECU911)</h3>
+              <form id="form-camera">
+                <label>Condominio / Residencia</label>
+                <input name="condominium_name" required />
+                <label>Responsable</label>
+                <input name="contact_name" required />
+                <label>Teléfono</label>
+                <input name="contact_phone" required />
+                <label>Ciudad</label>
+                <input name="city" required placeholder="Caracas" />
+                <label>Zona</label>
+                <input name="zone" placeholder="La Candelaria" />
+                <label>URL RTSP (proporcionada voluntariamente)</label>
+                <input name="rtsp_url" required placeholder="rtsp://usuario:clave@IP:554/…" />
+                <div class="check-row">
+                  <input type="checkbox" id="terms" name="terms_accepted" required />
+                  <label for="terms">Acepto ceder temporalmente el flujo bajo Términos y Condiciones SAR 2026</label>
+                </div>
+                <button type="submit" class="btn">Registrar cámara voluntaria</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Red CCTV autorizada</h3>
+              <div class="list" id="camera-list"><div class="empty">Sin cámaras registradas</div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Evidence -->
+        <section class="panel" id="panel-evidence">
+          <div class="grid-2">
+            <div class="card">
+              <h3>Subir evidencia ciudadana</h3>
+              <form id="form-evidence" enctype="multipart/form-data">
+                <label>Nombre del voluntario</label>
+                <input name="uploader_name" required />
+                <label>Teléfono</label>
+                <input name="contact_phone" required />
+                <label>Ubicación del avistamiento</label>
+                <input name="location_description" required placeholder="Calle, edificio, referencia…" />
+                <label>Descripción</label>
+                <textarea name="description"></textarea>
+                <label>Video (obligatorio)</label>
+                <input name="video" type="file" accept="video/*" required />
+                <div class="check-row">
+                  <input type="checkbox" checked disabled />
+                  <label>Consiento el procesamiento forense de este video para fines de rescate</label>
+                </div>
+                <input type="hidden" name="consent_given" value="true" />
+                <button type="submit" class="btn">Subir y procesar con YOLOv7-OA</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Evidencia procesada</h3>
+              <div class="list" id="evidence-list"><div class="empty">Sin evidencia subida</div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Drones -->
+        <section class="panel" id="panel-drones">
+          <div class="grid-2">
+            <div class="card">
+              <h3>Registrar dron autorizado</h3>
+              <form id="form-drone">
+                <label>Operador</label>
+                <input name="operator_name" required />
+                <label>Referencia de autorización oficial</label>
+                <input name="authorization_ref" required placeholder="SAR-VE-2026-XXXX" />
+                <label>Zona de operación</label>
+                <input name="zone" required />
+                <label>URL de stream / telemetría</label>
+                <input name="stream_url" required />
+                <label>URL fotogrametría 3D (opcional)</label>
+                <input name="photogrammetry_url" placeholder="https://…" />
+                <label>Lat / Lng</label>
+                <div style="display:flex;gap:0.5rem">
+                  <input name="lat" type="number" step="any" placeholder="Lat" style="flex:1" />
+                  <input name="lng" type="number" step="any" placeholder="Lng" style="flex:1" />
+                </div>
+                <button type="submit" class="btn">Registrar dron</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Flotas activas — Fotogrametría 3D</h3>
+              <div class="list" id="drone-list"><div class="empty">Sin drones registrados</div></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "";
+    const TITLES = {
+      sos: "Mapa de Calor SOS",
+      triage: "Triaje de Hospitales",
+      cctv: "Red Voluntaria CCTV",
+      evidence: "Evidencia Ciudadana",
+      drones: "Mapeo de Drones",
+    };
+
+    let map, sosLayer;
+    let ws, wsRetry;
+
+    function $(sel) { return document.querySelector(sel); }
+    function $all(sel) { return document.querySelectorAll(sel); }
+
+    function setWsStatus(on) {
+      const pill = $("#ws-pill");
+      pill.className = "ws-pill " + (on ? "on" : "off");
+      pill.textContent = on ? "● WS conectado" : "● WS desconectado";
+    }
+
+    function connectWs() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/ws/command-center`);
+      ws.onopen = () => { setWsStatus(true); clearTimeout(wsRetry); };
+      ws.onclose = () => { setWsStatus(false); wsRetry = setTimeout(connectWs, 3000); };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          handleWsEvent(msg);
+        } catch {}
+      };
+    }
+
+    function handleWsEvent(msg) {
+      if (msg.event === "victim_identified") {
+        const d = msg.data || {};
+        $("#match-text").textContent =
+          `${d.victim_name || "Persona"} identificada con ${Math.round((d.confidence || 0) * 100)}% de confianza · Caso ${d.case_code || ""} · ${d.hospital_name || ""}`;
+        $("#match-banner").classList.add("show");
+        loadTriage();
+      }
+      if (msg.event === "sos_signal") { loadSos(); addSosMarker(msg.data); }
+      if (msg.event === "evidence_processed") loadEvidence();
+      if (msg.event === "voluntary_camera_registered") loadCameras();
+      if (msg.event === "drone_registered") loadDrones();
+    }
+
+    function closeMatchBanner() { $("#match-banner").classList.remove("show"); }
+
+    function initMap() {
+      map = L.map("sos-map").setView([10.48, -66.90], 11);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: "© OpenStreetMap · CARTO",
+        maxZoom: 19,
+      }).addTo(map);
+      sosLayer = L.layerGroup().addTo(map);
+    }
+
+    function addSosMarker(s) {
+      if (!map || !s.lat) return;
+      const color = s.vital_status === "Atrapado" ? "#c43b3b" : "#2d9d6b";
+      L.circleMarker([s.lat, s.lng], {
+        radius: 10, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.85,
+      }).bindPopup(`<strong>${s.vital_status}</strong><br>${s.message || ""}`).addTo(sosLayer);
+    }
+
+    async function loadSummary() {
+      try {
+        const r = await fetch(`${API}/api/dashboard/summary`);
+        const d = await r.json();
+        $("#summary-stats").innerHTML = `
+          <span>Desaparecidos: <strong>${d.missing_persons?.toLocaleString() || 0}</strong></span>
+          <span>SOS: <strong>${d.sos_active || 0}</strong></span>
+          <span>Matches: <strong>${d.victim_matches || 0}</strong></span>
+        `;
+      } catch {}
+    }
+
+    async function loadSos() {
+      const r = await fetch(`${API}/api/sos/signals`);
+      const items = await r.json();
+      const el = $("#sos-list");
+      if (!items.length) { el.innerHTML = '<div class="empty">Sin señales SOS activas</div>'; return; }
+      sosLayer?.clearLayers();
+      el.innerHTML = items.map(s => {
+        addSosMarker(s);
+        const cls = s.vital_status === "Atrapado" ? "badge-trapped" : "badge-safe";
+        return `<div class="list-item"><div class="meta"><strong>${s.vital_status}</strong>
+          <span class="badge ${cls}">${s.vital_status}</span><br>
+          📍 ${s.lat?.toFixed(5)}, ${s.lng?.toFixed(5)}<br>
+          ${s.message || ""}<br><small>${s.created_at || ""}</small></div></div>`;
+      }).join("");
+    }
+
+    async function loadTriage() {
+      const r = await fetch(`${API}/api/triage/medical`);
+      const { items } = await r.json();
+      const el = $("#triage-list");
+      if (!items?.length) { el.innerHTML = '<div class="empty">Sin registros de triaje</div>'; return; }
+      el.innerHTML = items.map(t => {
+        const tattoos = (t.tatuajes_clasificados || []).map(x => x.categoria_ansi_nist).join(", ") || "—";
+        const match = t.matched_victim_id
+          ? `<span class="badge badge-match">MATCH ${Math.round((t.match_confidence||0)*100)}%</span>`
+          : "";
+        return `<div class="list-item">
+          <img src="${t.photo_url}" alt="" onerror="this.style.display='none'" />
+          <div class="meta"><strong>${t.case_code}</strong> ${match}<br>
+          ${t.hospital_name} · ${t.ward || ""}<br>
+          Estatura IA: <strong>${t.estatura_estimada_cm || "—"} cm</strong><br>
+          Tatuajes ANSI/NIST: ${tattoos}<br>
+          ${t.match_details?.victim_name ? `→ <strong>${t.match_details.victim_name}</strong>` : ""}
+          </div></div>`;
+      }).join("");
+    }
+
+    async function loadCameras() {
+      const r = await fetch(`${API}/api/cameras/voluntary`);
+      const { items } = await r.json();
+      const el = $("#camera-list");
+      if (!items?.length) { el.innerHTML = '<div class="empty">Sin cámaras registradas</div>'; return; }
+      el.innerHTML = items.map(c => `<div class="list-item"><div class="meta">
+        <strong>${c.condominium_name}</strong><br>${c.city} · ${c.zone || ""}<br>
+        Responsable: ${c.contact_name}<br>
+        <small>Autorizado hasta: ${c.authorized_until?.slice(0,10) || "—"}</small>
+      </div></div>`).join("");
+    }
+
+    async function loadEvidence() {
+      const r = await fetch(`${API}/api/evidence`);
+      const { items } = await r.json();
+      const el = $("#evidence-list");
+      if (!items?.length) { el.innerHTML = '<div class="empty">Sin evidencia subida</div>'; return; }
+      el.innerHTML = items.map(e => `<div class="list-item"><div class="meta">
+        <strong>${e.uploader_name}</strong> — ${e.processing_status}<br>
+        ${e.location_description}<br>
+        Detecciones YOLOv7-OA: <strong>${e.detections_count}</strong><br>
+        <small>${e.created_at?.slice(0,19) || ""}</small>
+      </div></div>`).join("");
+    }
+
+    async function loadDrones() {
+      const r = await fetch(`${API}/api/drones/telemetry`);
+      const { items } = await r.json();
+      const el = $("#drone-list");
+      if (!items?.length) { el.innerHTML = '<div class="empty">Sin drones registrados</div>'; return; }
+      el.innerHTML = items.map(d => `<div class="list-item"><div class="meta">
+        <strong>${d.operator_name}</strong> · ${d.zone}<br>
+        Autorización: ${d.authorization_ref}<br>
+        ${d.photogrammetry_url ? `<a href="${d.photogrammetry_url}" target="_blank" style="color:var(--blue)">Ver fotogrametría 3D ↗</a>` : ""}
+        <div class="drone-view" style="margin-top:0.5rem;height:120px">🛸 Zona: ${d.zone}</div>
+      </div></div>`).join("");
+    }
+
+    function useMyLocation() {
+      if (!navigator.geolocation) return alert("Geolocalización no disponible");
+      navigator.geolocation.getCurrentPosition(pos => {
+        $("#form-sos [name=lat]").value = pos.coords.latitude.toFixed(6);
+        $("#form-sos [name=lng]").value = pos.coords.longitude.toFixed(6);
+      });
+    }
+
+    $all(".nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        $all(".nav-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const id = btn.dataset.panel;
+        $all(".panel").forEach(p => p.classList.remove("active"));
+        $(`#panel-${id}`).classList.add("active");
+        $("#panel-title").textContent = TITLES[id];
+        if (id === "sos") setTimeout(() => map?.invalidateSize(), 200);
+      });
+    });
+
+    $("#form-sos").addEventListener("submit", async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = {
+        lat: parseFloat(fd.get("lat")),
+        lng: parseFloat(fd.get("lng")),
+        vital_status: fd.get("vital_status"),
+        message: fd.get("message") || null,
+        contact_phone: fd.get("contact_phone") || null,
+      };
+      const r = await fetch(`${API}/api/sos/panic`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (r.ok) { e.target.reset(); loadSos(); loadSummary(); }
+    });
+
+    $("#form-triage").addEventListener("submit", async e => {
+      e.preventDefault();
+      const r = await fetch(`${API}/api/triage/medical`, { method: "POST", body: new FormData(e.target) });
+      if (r.ok) { e.target.reset(); loadTriage(); loadSummary(); }
+    });
+
+    $("#form-camera").addEventListener("submit", async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = {
+        condominium_name: fd.get("condominium_name"),
+        contact_name: fd.get("contact_name"),
+        contact_phone: fd.get("contact_phone"),
+        rtsp_url: fd.get("rtsp_url"),
+        city: fd.get("city"),
+        zone: fd.get("zone") || null,
+        terms_accepted: $("#terms").checked,
+      };
+      const r = await fetch(`${API}/api/cameras/voluntary`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (r.ok) { e.target.reset(); loadCameras(); loadSummary(); }
+      else { const err = await r.json(); alert(err.detail || "Error al registrar"); }
+    });
+
+    $("#form-evidence").addEventListener("submit", async e => {
+      e.preventDefault();
+      const r = await fetch(`${API}/api/evidence/upload`, { method: "POST", body: new FormData(e.target) });
+      if (r.ok) { e.target.reset(); loadEvidence(); loadSummary(); }
+    });
+
+    $("#form-drone").addEventListener("submit", async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd.entries());
+      ["lat","lng"].forEach(k => { if (body[k]) body[k] = parseFloat(body[k]); else delete body[k]; });
+      const r = await fetch(`${API}/api/drones/telemetry`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (r.ok) { e.target.reset(); loadDrones(); loadSummary(); }
+    });
+
+    initMap();
+    connectWs();
+    loadSummary();
+    loadSos();
+    loadTriage();
+    loadCameras();
+    loadEvidence();
+    loadDrones();
+    setInterval(loadSummary, 30000);
+  </script>
+</body>
+</html>
