@@ -7,6 +7,36 @@
     "https://desaparecidosterremotovenezuela.com/",
     "https://terremotovenezuela.com/"
   ],
+  "telefonos_emergencia": [
+    {
+      "numero": "171",
+      "numero_marcar": "171",
+      "operadora": "Teléfono fijo CANTV",
+      "id": "cantv",
+      "color": "#4a90d9"
+    },
+    {
+      "numero": "*1",
+      "numero_marcar": "*1",
+      "operadora": "Movilnet",
+      "id": "movilnet",
+      "color": "#F5A623"
+    },
+    {
+      "numero": "112",
+      "numero_marcar": "112",
+      "operadora": "Digitel",
+      "id": "digitel",
+      "color": "#E4002B"
+    },
+    {
+      "numero": "911",
+      "numero_marcar": "911",
+      "operadora": "Movistar",
+      "id": "movistar",
+      "color": "#019DF4"
+    }
+  ],
   "nacional": [
     {
       "nombre": "Emergencias unificadas",
@@ -39,6 +69,7 @@
     {
       "id": "caracas",
       "nombre": "Caracas / Municipio Libertador",
+      "titulo_corto": "Caracas",
       "estado": "Distrito Capital",
       "prioridad": true,
       "contactos": [
@@ -90,6 +121,7 @@
     {
       "id": "la-guaira",
       "nombre": "La Guaira / Vargas",
+      "titulo_corto": "La Guaira",
       "estado": "La Guaira",
       "prioridad": true,
       "contactos": [
@@ -116,6 +148,7 @@
     {
       "id": "valencia",
       "nombre": "Valencia / Carabobo",
+      "titulo_corto": "Valencia",
       "estado": "Carabobo",
       "prioridad": true,
       "contactos": [
@@ -145,6 +178,7 @@
     {
       "id": "maracay",
       "nombre": "Maracay / Aragua",
+      "titulo_corto": "Maracay",
       "estado": "Aragua",
       "prioridad": true,
       "contactos": [
@@ -174,6 +208,7 @@
     {
       "id": "nacional",
       "nombre": "Todo Venezuela",
+      "titulo_corto": "Venezuela",
       "estado": "Nacional",
       "prioridad": false,
       "contactos": [
