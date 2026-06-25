@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from connection_manager import victim_room_manager
 from event_bus import missing_updates_bus
+from stats_dashboard import broadcast_dashboard_stats, update_live_stats_cache
 from terremoto_ingestor import TerremotoVenezuelaClient, fetch_live_unified_stats
 from terremoto_photos import enrich_building
 
@@ -15,48 +16,64 @@ logger = logging.getLogger(__name__)
 
 
 class TerremotoRealtimeWorker:
-    def __init__(self, poll_interval: float = 45.0):
+    def __init__(self, poll_interval: float = 20.0):
         self.poll_interval = poll_interval
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self.last_stats: dict[str, Any] = {}
         self.last_building_ids: set[str] = set()
         self.cycles = 0
+        self._refresh_lock = asyncio.Lock()
+        self._last_poll_at: float = 0.0
 
-    async def poll_and_broadcast(self) -> dict[str, Any]:
-        stats = await fetch_live_unified_stats()
-        payload = stats.to_dict()
-        self.cycles += 1
+    async def poll_and_broadcast(self, *, force: bool = False, min_interval: float = 15.0) -> dict[str, Any]:
+        if self.last_stats and not force:
+            elapsed = asyncio.get_event_loop().time() - self._last_poll_at
+            if elapsed < min_interval:
+                return self.last_stats
 
-        await missing_updates_bus.publish("live_stats", payload)
-        await victim_room_manager.broadcast("live_stats", payload)
+        async with self._refresh_lock:
+            if self.last_stats and not force:
+                elapsed = asyncio.get_event_loop().time() - self._last_poll_at
+                if elapsed < min_interval:
+                    return self.last_stats
 
-        async with TerremotoVenezuelaClient() as client:
-            buildings = await client.fetch_buildings(limit=20)
+            stats = await fetch_live_unified_stats()
+            self._last_poll_at = asyncio.get_event_loop().time()
+            payload = stats.to_dict()
+            self.cycles += 1
 
-        new_buildings = []
-        for b in buildings:
-            bid = b.get("id", "")
-            if bid and bid not in self.last_building_ids:
-                new_buildings.append(b)
-                self.last_building_ids.add(bid)
+            await missing_updates_bus.publish("live_stats", payload)
+            await victim_room_manager.broadcast("live_stats", payload)
 
-        if len(self.last_building_ids) > 500:
-            self.last_building_ids = set(list(self.last_building_ids)[-200:])
+            async with TerremotoVenezuelaClient() as client:
+                buildings = await client.fetch_buildings(limit=20)
 
-        if new_buildings and self.cycles > 1:
-            for building in new_buildings[:5]:
-                payload = enrich_building(building)
-                await missing_updates_bus.publish("terremoto_building", payload)
-                await victim_room_manager.broadcast("terremoto_building", payload)
+            new_buildings = []
+            for b in buildings:
+                bid = b.get("id", "")
+                if bid and bid not in self.last_building_ids:
+                    new_buildings.append(b)
+                    self.last_building_ids.add(bid)
 
-        self.last_stats = payload
-        logger.info(
-            "Stats en vivo | desap=%s | edificios=%s",
-            payload["desaparecidos"].get("total"),
-            payload["terremoto"].get("total_edificios"),
-        )
-        return payload
+            if len(self.last_building_ids) > 500:
+                self.last_building_ids = set(list(self.last_building_ids)[-200:])
+
+            if new_buildings and self.cycles > 1:
+                for building in new_buildings[:5]:
+                    building_payload = enrich_building(building)
+                    await missing_updates_bus.publish("terremoto_building", building_payload)
+                    await victim_room_manager.broadcast("terremoto_building", building_payload)
+
+            self.last_stats = payload
+            update_live_stats_cache(payload)
+            await broadcast_dashboard_stats(terremoto_cycles=self.cycles)
+            logger.info(
+                "Stats en vivo | desap=%s | edificios=%s",
+                payload["desaparecidos"].get("total"),
+                payload["terremoto"].get("total_edificios"),
+            )
+            return payload
 
     async def run_forever(self) -> None:
         self._running = True

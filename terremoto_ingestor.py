@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -104,27 +105,31 @@ class TerremotoVenezuelaClient:
             return int(content_range.split("/")[-1])
         return 0
 
-    async def fetch_damage_breakdown(self) -> dict[str, int]:
-        response = await self.client.get(
+    async def _count_by_filter(self, params: dict[str, str]) -> int:
+        response = await self.client.head(
             f"{self.base}/rest/v1/buildings",
-            headers=self._headers(),
-            params={"select": "damage_level"},
+            headers=self._headers(count=True),
+            params={"select": "id", **params},
         )
         response.raise_for_status()
-        rows = response.json()
-        breakdown = {"total": len(rows), "parcial": 0, "severo": 0, "total_damage": 0}
-        for row in rows:
-            level = row.get("damage_level", "")
-            if level in breakdown:
-                breakdown[level] = breakdown.get(level, 0) + 1
-            if level == "total":
-                breakdown["total_damage"] += 1
-        # fix key name - "total" damage level vs total count
-        breakdown["dano_total"] = sum(1 for r in rows if r.get("damage_level") == "total")
-        breakdown["parcial"] = sum(1 for r in rows if r.get("damage_level") == "parcial")
-        breakdown["severo"] = sum(1 for r in rows if r.get("damage_level") == "severo")
-        breakdown["total"] = len(rows)
-        return breakdown
+        content_range = response.headers.get("content-range", "")
+        if "/" in content_range:
+            return int(content_range.split("/")[-1])
+        return 0
+
+    async def fetch_damage_breakdown(self) -> dict[str, int]:
+        parcial, severo, dano_total = await asyncio.gather(
+            self._count_by_filter({"damage_level": "eq.parcial"}),
+            self._count_by_filter({"damage_level": "eq.severo"}),
+            self._count_by_filter({"damage_level": "eq.total"}),
+        )
+        total = await self.fetch_building_count()
+        return {
+            "total": total,
+            "parcial": parcial,
+            "severo": severo,
+            "dano_total": dano_total,
+        }
 
     async def get_terremoto_stats(self) -> dict[str, Any]:
         total = await self.fetch_building_count()
@@ -143,30 +148,82 @@ class TerremotoVenezuelaClient:
         }
 
 
-async def fetch_desaparecidos_live() -> dict[str, Any]:
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(
-            f"{settings.source_api_url.rstrip('/')}/personas",
-            params={"page": 1, "pageSize": 1},
+async def fetch_desaparecidos_local() -> dict[str, Any]:
+    from database import MissingStatus, MissingVictim, async_session_factory
+    from sqlalchemy import func, select
+
+    async with async_session_factory() as session:
+        total = await session.scalar(select(func.count()).select_from(MissingVictim)) or 0
+        sin_contacto = (
+            await session.scalar(
+                select(func.count()).where(MissingVictim.status == MissingStatus.DESAPARECIDO)
+            )
+            or 0
         )
-        response.raise_for_status()
-        data = response.json()
-        counts = data.get("counts", {})
-        return {
-            "fuente": DESAPARECIDOS_SITE,
-            "total": counts.get("total", data.get("total", 0)),
-            "sin_contacto": counts.get("sinContacto", 0),
-            "localizado": counts.get("localizado", 0),
-            "total_pages": data.get("totalPages", 0),
-        }
+        localizado = (
+            await session.scalar(
+                select(func.count()).where(MissingVictim.status == MissingStatus.LOCALIZADO)
+            )
+            or 0
+        )
+    return {
+        "fuente": DESAPARECIDOS_SITE,
+        "total": total,
+        "sin_contacto": sin_contacto,
+        "localizado": localizado,
+        "total_pages": 0,
+        "source": "local_db",
+    }
+
+
+async def fetch_desaparecidos_live() -> dict[str, Any]:
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                f"{settings.source_api_url.rstrip('/')}/personas",
+                params={"page": 1, "pageSize": 1},
+            )
+            response.raise_for_status()
+            data = response.json()
+            counts = data.get("counts", {})
+            return {
+                "fuente": DESAPARECIDOS_SITE,
+                "total": counts.get("total", data.get("total", 0)),
+                "sin_contacto": counts.get("sinContacto", 0),
+                "localizado": counts.get("localizado", 0),
+                "total_pages": data.get("totalPages", 0),
+                "source": "api",
+            }
+    except Exception:
+        logger.warning("API desaparecidos no disponible; usando base local", exc_info=True)
+        return await fetch_desaparecidos_local()
 
 
 async def fetch_live_unified_stats() -> LiveStats:
-    desap = await fetch_desaparecidos_live()
-    async with TerremotoVenezuelaClient() as terremoto:
-        trem = await terremoto.get_terremoto_stats()
+    desap, trem = await asyncio.gather(
+        fetch_desaparecidos_live(),
+        _fetch_terremoto_stats_safe(),
+    )
     return LiveStats(
         desaparecidos=desap,
         terremoto=trem,
         fetched_at=datetime.now(timezone.utc).isoformat(),
     )
+
+
+async def _fetch_terremoto_stats_safe() -> dict[str, Any]:
+    try:
+        async with TerremotoVenezuelaClient() as terremoto:
+            return await terremoto.get_terremoto_stats()
+    except Exception:
+        logger.warning("API terremoto no disponible", exc_info=True)
+        return {
+            "fuente": TERREMOTO_SITE,
+            "total_edificios": 0,
+            "dano_parcial": 0,
+            "dano_severo": 0,
+            "dano_total": 0,
+            "verificados": 0,
+            "ultimos_reportes": [],
+            "source": "unavailable",
+        }

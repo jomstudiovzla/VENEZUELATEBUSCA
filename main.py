@@ -40,6 +40,7 @@ from camera_service import SNAPSHOT_DIR as CAMERA_SNAPSHOT_DIR, camera_service
 from terremoto_ingestor import TerremotoVenezuelaClient, fetch_live_unified_stats
 from terremoto_photos import BUILDING_PHOTOS_DIR, enrich_building, get_building_photo_stats
 from terremoto_realtime import TerremotoRealtimeWorker
+from stats_dashboard import collect_dashboard_stats, get_live_stats_cache, update_live_stats_cache
 from database import (
     AuthorizedRescueFeed,
     FeedStatus,
@@ -646,6 +647,62 @@ async def victima_status_ws(websocket: WebSocket, person_id: int):
         await victim_room_manager.disconnect(conn_id, room=room)
 
 
+def _dashboard_worker_kwargs() -> dict[str, Any]:
+    return {
+        "scraper_stats": {
+            "cycles": scraper.stats.cycles,
+            "source_total": scraper.stats.source_total,
+            "sin_contacto": scraper.stats.sin_contacto,
+            "localizado": scraper.stats.localizado,
+            "last_new": scraper.stats.last_new,
+            "last_updated": scraper.stats.last_updated,
+        }
+        if scraper
+        else {},
+        "photo_worker": {
+            "cycles": photo_worker.stats.cycles,
+            "downloaded_session": photo_worker.stats.downloaded,
+        }
+        if photo_worker
+        else {},
+        "building_photo_worker": {
+            "cycles": building_photo_worker.stats.cycles,
+            "downloaded_session": building_photo_worker.stats.downloaded,
+        }
+        if building_photo_worker
+        else {},
+        "terremoto_cycles": terremoto_worker.cycles if terremoto_worker else 0,
+        "cameras_total": len(camera_service.cameras),
+        "cameras_online": sum(
+            1 for runtime in camera_service.cameras.values() if runtime.status == "en_vivo"
+        ),
+    }
+
+
+async def _fast_live_fallback() -> dict[str, Any]:
+    dash = await collect_dashboard_stats(**_dashboard_worker_kwargs())
+    local = dash["local"]
+    cached_live = dash.get("live") or {}
+    return {
+        "fetched_at": dash["fetched_at"],
+        "desaparecidos": cached_live.get("desaparecidos")
+        or {
+            "total": local["total"],
+            "sin_contacto": local["desaparecido"],
+            "localizado": local["localizado"],
+        },
+        "terremoto": cached_live.get("terremoto")
+        or {
+            "total_edificios": 0,
+            "dano_parcial": 0,
+            "dano_severo": 0,
+            "dano_total": 0,
+        },
+        "fuentes": cached_live.get("fuentes", {}),
+        "source": "local_cache",
+    }
+
+
 @app.websocket("/ws/status_updates")
 async def status_updates_ws(websocket: WebSocket):
     conn_id = await status_updates_manager.connect(websocket)
@@ -654,6 +711,28 @@ async def status_updates_ws(websocket: WebSocket):
         {
             "event": "connected",
             "data": {"message": "Conectado al tablero de triaje", "operator_id": conn_id},
+            "timestamp": datetime.now().isoformat(),
+        },
+    )
+    live_payload = (
+        terremoto_worker.last_stats
+        if terremoto_worker and terremoto_worker.last_stats
+        else get_live_stats_cache() or await _fast_live_fallback()
+    )
+    await status_updates_manager.send_personal(
+        conn_id,
+        {
+            "event": "live_stats",
+            "data": live_payload,
+            "timestamp": datetime.now().isoformat(),
+        },
+    )
+    dashboard = await collect_dashboard_stats(**_dashboard_worker_kwargs())
+    await status_updates_manager.send_personal(
+        conn_id,
+        {
+            "event": "dashboard_stats",
+            "data": dashboard,
             "timestamp": datetime.now().isoformat(),
         },
     )
@@ -701,12 +780,31 @@ async def source_stats():
         return await ingestor.get_source_stats()
 
 
+@app.get("/api/stats/dashboard")
+async def dashboard_stats():
+    return await collect_dashboard_stats(**_dashboard_worker_kwargs())
+
+
 @app.get("/api/stats/live")
-async def live_unified_stats():
+async def live_unified_stats(background_tasks: BackgroundTasks):
     if terremoto_worker and terremoto_worker.last_stats:
+        background_tasks.add_task(_refresh_live_stats_if_needed)
         return terremoto_worker.last_stats
-    stats = await fetch_live_unified_stats()
-    return stats.to_dict()
+    cached = get_live_stats_cache()
+    if cached:
+        background_tasks.add_task(_refresh_live_stats_if_needed)
+        return cached
+    background_tasks.add_task(_refresh_live_stats_if_needed)
+    return await _fast_live_fallback()
+
+
+async def _refresh_live_stats_if_needed() -> None:
+    if not terremoto_worker:
+        return
+    try:
+        await terremoto_worker.poll_and_broadcast(min_interval=15.0)
+    except Exception:
+        logger.exception("Error refrescando stats en vivo en segundo plano")
 
 
 @app.get("/api/terremoto/buildings")

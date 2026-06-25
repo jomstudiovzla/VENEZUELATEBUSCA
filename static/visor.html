@@ -1138,7 +1138,9 @@
       <div class="live-pills">
         <span id="ws-pill" class="pill err">WS: conectando…</span>
         <span id="live-pill" class="pill warn">LIVE: …</span>
-        <span id="fot-pill" class="pill">Fotos local: …</span>
+        <span id="db-pill" class="pill">BD local: …</span>
+        <span id="fot-pill" class="pill">Fotos: …</span>
+        <span id="em-pill" class="pill">Emergencias: …</span>
       </div>
     </div>
 
@@ -1390,7 +1392,7 @@
     <strong>Fuentes en vivo:</strong>
     <a href="https://desaparecidosterremotovenezuela.com/" target="_blank">desaparecidosterremotovenezuela.com</a>
     · <a href="https://terremotovenezuela.com/" target="_blank">terremotovenezuela.com</a>
-    · Los contadores se actualizan cada ~45s vía WebSocket y API <code>/api/stats/live</code>.
+    · Contadores en tiempo real vía WebSocket (~20s) y <code>/api/stats/dashboard</code>.
     · <a href="/docs">API docs</a> · <a href="/health">/health</a>
   </footer>
 
@@ -1528,6 +1530,53 @@
         personState.liveTotal = d.total;
       }
       updateListMeta();
+    }
+
+    function applyDashboardStats(data) {
+      if (!data) return;
+      const local = data.local || {};
+      const live = data.live || {};
+      const fotos = data.fotos || {};
+      const em = data.emergencias || {};
+      const cams = data.camaras || {};
+
+      if (live.desaparecidos || live.terremoto) {
+        applyLiveStats(live);
+      } else if (local.total) {
+        applyLiveStats({
+          fetched_at: data.fetched_at,
+          desaparecidos: {
+            total: local.total,
+            sin_contacto: local.desaparecido,
+            localizado: local.localizado,
+          },
+          terremoto: lastLiveStats?.terremoto || {},
+        });
+      }
+
+      document.getElementById("db-pill").textContent =
+        `BD local: ${fmt(local.total)} (${fmt(local.desaparecido)} sin contacto)`;
+      document.getElementById("fot-pill").textContent =
+        `Fotos: ${fmt(fotos.descargadas)} / ${fmt(fotos.con_url)} · Edif. fotos: ${fmt(data.edificios_fotos?.descargadas || 0)}`;
+      document.getElementById("em-pill").textContent =
+        `Emergencias: ${fmt(em.operadoras || 4)} ops · ${fmt(em.zonas || 0)} zonas`;
+
+      const scraper = data.workers?.scraper || {};
+      if (scraper.last_new > 0) {
+        updateTicker(`👤 +${scraper.last_new} nuevos en fuente (${fmt(scraper.source_total)} total)`);
+      }
+      if (cams.total) {
+        const camPill = document.getElementById("cam-pill");
+        if (camPill) camPill.textContent = `Cámaras: ${fmt(cams.en_vivo)}/${fmt(cams.total)} en vivo`;
+      }
+    }
+
+    async function loadDashboard() {
+      try {
+        const res = await fetch(`${API}/api/stats/dashboard`);
+        const data = await res.json();
+        applyDashboardStats(data);
+      } catch { /* ignore */ }
     }
 
     function mergeBuildings(incoming, existing) {
@@ -1908,14 +1957,6 @@
       } catch {
         setPill(document.getElementById("live-pill"), false, "LIVE: sin conexión");
       }
-    }
-
-    async function loadPhotoStats() {
-      try {
-        const photos = await fetch(`${API}/api/photos/stats`).then((r) => r.json());
-        document.getElementById("fot-pill").textContent =
-          `Fotos local: ${fmt(photos.descargadas)} / ${fmt(photos.con_url)}`;
-      } catch { /* ignore */ }
     }
 
     async function loadPersonsPage(reset) {
@@ -2569,6 +2610,10 @@
           );
         }
 
+        if (msg.event === "dashboard_stats") {
+          applyDashboardStats(d);
+        }
+
         if (msg.event === "camera_frame") {
           updateCameraFromWs(d);
         }
@@ -2618,7 +2663,7 @@
           if (card) applyPhoto(card, d);
           const p = allPersons.find((x) => x.id === d.id);
           if (p) p.local_photo_url = d.local_photo_url;
-          loadPhotoStats();
+          loadDashboard();
         }
 
         if (msg.event === "new_missing" || msg.event === "updated_missing") {
@@ -2703,16 +2748,16 @@
     bindEmergencyControls();
     loadEmergencias();
 
+    loadDashboard();
     loadLiveStats();
-    loadPhotoStats();
     resetPersonList();
     loadPersonsPage(true);
     loadBuildings();
     loadCameras();
     connectWs();
-    setInterval(loadLiveStats, 45000);
-    setInterval(loadPhotoStats, 30000);
-    setInterval(loadBuildings, 120000);
+    setInterval(loadDashboard, 8000);
+    setInterval(loadLiveStats, 20000);
+    setInterval(loadBuildings, 30000);
     setInterval(loadCameras, 12000);
   </script>
 </body>

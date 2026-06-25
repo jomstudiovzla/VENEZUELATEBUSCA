@@ -23,9 +23,10 @@ from data_ingestor import (
     parse_physical_traits,
     map_source_status,
 )
-from connection_manager import status_updates_manager
+from connection_manager import victim_room_manager
 from database import MissingStatus, MissingVictim, async_session_factory, init_db, settings
 from event_bus import missing_updates_bus
+from stats_dashboard import broadcast_dashboard_stats
 
 logger = logging.getLogger(__name__)
 
@@ -216,9 +217,8 @@ class RealtimeScraper:
         await missing_updates_bus.publish(event_type, payload)
 
         if event_type in ("updated_missing", "new_missing"):
-            from connection_manager import victim_room_manager
-
-            payload = {
+            await victim_room_manager.broadcast(event_type, payload)
+            status_payload = {
                 "id": victim.id,
                 "external_id": victim.external_id,
                 "full_name": victim.full_name,
@@ -228,52 +228,88 @@ class RealtimeScraper:
                 "last_known_location": victim.last_known_location,
                 "photo_url": victim.photo_url,
             }
-            await victim_room_manager.broadcast_status(victim.id, payload)
+            await victim_room_manager.broadcast_status(victim.id, status_payload)
+
+    async def _load_local_counts(self) -> None:
+        async with async_session_factory() as session:
+            total = await session.scalar(select(func.count()).select_from(MissingVictim)) or 0
+            desaparecido = (
+                await session.scalar(
+                    select(func.count()).where(MissingVictim.status == MissingStatus.DESAPARECIDO)
+                )
+                or 0
+            )
+            localizado = (
+                await session.scalar(
+                    select(func.count()).where(MissingVictim.status == MissingStatus.LOCALIZADO)
+                )
+                or 0
+            )
+        self.stats.source_total = total
+        self.stats.sin_contacto = desaparecido
+        self.stats.localizado = localizado
 
     async def poll_cycle(self) -> dict[str, int]:
         created = 0
         updated = 0
         unchanged = 0
+        api_offline = False
 
-        async with DesaparecidosIngestor() as ingestor:
-            client = ingestor.client
-            dom_stats = await self.scrape_dom_stats(client)
-            first_page = await ingestor.fetch_page(page=1, page_size=settings.sync_page_size)
-            api_counts = first_page.get("counts", {})
-            source_total = api_counts.get("total", first_page.get("total", 0))
+        try:
+            async with DesaparecidosIngestor() as ingestor:
+                client = ingestor.client
+                dom_stats = await self.scrape_dom_stats(client)
+                first_page = await ingestor.fetch_page(page=1, page_size=settings.sync_page_size)
+                api_counts = first_page.get("counts", {})
+                source_total = api_counts.get("total", first_page.get("total", 0))
 
-            self.stats.source_total = source_total
-            self.stats.sin_contacto = api_counts.get("sinContacto", dom_stats.get("sin_contacto", 0))
-            self.stats.localizado = api_counts.get("localizado", dom_stats.get("localizado", 0))
+                self.stats.source_total = source_total
+                self.stats.sin_contacto = api_counts.get("sinContacto", dom_stats.get("sin_contacto", 0))
+                self.stats.localizado = api_counts.get("localizado", dom_stats.get("localizado", 0))
 
-            pages_to_scan = 1
-            if source_total > self._last_source_total:
-                delta_pages = max(1, (source_total - self._last_source_total) // settings.sync_page_size + 1)
-                pages_to_scan = min(delta_pages, self.max_incremental_pages)
-            self._last_source_total = source_total
+                pages_to_scan = 1
+                if source_total > self._last_source_total:
+                    delta_pages = max(1, (source_total - self._last_source_total) // settings.sync_page_size + 1)
+                    pages_to_scan = min(delta_pages, self.max_incremental_pages)
+                self._last_source_total = source_total
 
-            for page in range(1, pages_to_scan + 1):
-                payload = first_page if page == 1 else await ingestor.fetch_page(
-                    page=page, page_size=settings.sync_page_size
-                )
-                async with async_session_factory() as session:
-                    for item in payload.get("items", []):
-                        record = ingestor._to_record(item)
-                        victim, action = await self.upsert_record(session, record, ingestor)
-                        if action == "created" and victim:
-                            created += 1
-                            await self._commit_with_retry(session)
-                            await self._emit("new_missing", victim)
-                        elif action == "updated" and victim:
-                            updated += 1
-                            await self._commit_with_retry(session)
-                            await self._emit("updated_missing", victim)
-                        else:
-                            unchanged += 1
+                for page in range(1, pages_to_scan + 1):
+                    payload = first_page if page == 1 else await ingestor.fetch_page(
+                        page=page, page_size=settings.sync_page_size
+                    )
+                    async with async_session_factory() as session:
+                        for item in payload.get("items", []):
+                            record = ingestor._to_record(item)
+                            victim, action = await self.upsert_record(session, record, ingestor)
+                            if action == "created" and victim:
+                                created += 1
+                                await self._commit_with_retry(session)
+                                await self._emit("new_missing", victim)
+                            elif action == "updated" and victim:
+                                updated += 1
+                                await self._commit_with_retry(session)
+                                await self._emit("updated_missing", victim)
+                            else:
+                                unchanged += 1
+        except Exception:
+            logger.warning("API desaparecidos no disponible en ciclo de rastreo; usando BD local", exc_info=True)
+            api_offline = True
+            await self._load_local_counts()
 
         self.stats.cycles += 1
         self.stats.last_new = created
         self.stats.last_updated = updated
+        await broadcast_dashboard_stats(
+            scraper_stats={
+                "cycles": self.stats.cycles,
+                "source_total": self.stats.source_total,
+                "sin_contacto": self.stats.sin_contacto,
+                "localizado": self.stats.localizado,
+                "last_new": created,
+                "last_updated": updated,
+                "api_offline": api_offline,
+            }
+        )
         logger.info(
             "Ciclo #%d | total_fuente=%d | nuevos=%d | actualizados=%d | sin_cambio=%d",
             self.stats.cycles,

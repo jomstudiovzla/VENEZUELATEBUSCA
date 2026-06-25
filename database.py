@@ -34,13 +34,13 @@ class Settings(BaseSettings):
     sync_page_size: int = 100
     sync_interval_minutes: int = 15
     process_photo_embeddings: bool = True
-    scraper_poll_interval: int = 30
+    scraper_poll_interval: int = 20
     scraper_max_pages_incremental: int = 5
     photo_batch_size: int = 8
     photo_pause_seconds: float = 1.5
     terremoto_supabase_url: str = "https://jckifxsdlnsvbztxydes.supabase.co"
     terremoto_api_key: str = "sb_publishable_i7iEDrCVZcSt0k3RGFrY4g_WrtZBB4w"
-    terremoto_poll_interval: int = 45
+    terremoto_poll_interval: int = 20
     building_photo_batch_size: int = 6
     building_photo_pause_seconds: float = 2.0
 
