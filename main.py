@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import cv2
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -50,10 +50,12 @@ from database import (
     RescueAlert,
     SyncLog,
     async_session_factory,
+    commit_with_retry,
     get_session,
     init_db,
     settings,
 )
+from reports import create_building_report, create_person_report, list_building_reports
 from height_estimator import HeightEstimator
 from rescue_matcher import RescueMatcher
 from tattoo_analyzer import TattooAnalyzer
@@ -351,6 +353,7 @@ def _serialize_person(p: MissingPerson) -> dict:
         "reporter_contact": p.reporter_contact,
         "status": p.status.value,
         "nuevo_estado": p.status.value,
+        "is_local_report": bool(p.external_id and p.external_id.startswith("report-")),
     }
 
 
@@ -812,6 +815,7 @@ async def terremoto_buildings(
     limit: int = 50,
     damage_level: Optional[str] = None,
     search: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
 ):
     async with TerremotoVenezuelaClient() as client:
         buildings = await client.fetch_buildings(
@@ -820,12 +824,104 @@ async def terremoto_buildings(
             search=search,
         )
     enriched = [enrich_building(b) for b in buildings]
+    local_reports = await list_building_reports(session, limit=200)
+    if damage_level:
+        local_reports = [b for b in local_reports if b.get("damage_level") == damage_level]
+    if search:
+        needle = search.lower()
+        local_reports = [
+            b
+            for b in local_reports
+            if needle in (b.get("name") or "").lower()
+            or needle in (b.get("address") or "").lower()
+            or needle in (b.get("city") or "").lower()
+            or needle in (b.get("zone") or "").lower()
+        ]
+    merged: dict[str, dict[str, Any]] = {b["id"]: b for b in local_reports}
+    for building in enriched:
+        merged.setdefault(building["id"], building)
+    combined = sorted(
+        merged.values(),
+        key=lambda item: item.get("last_updated_at") or "",
+        reverse=True,
+    )[: min(limit, 200)]
     return {
         "fuente": "https://terremotovenezuela.com/",
         "carpeta_fotos": str(BUILDING_PHOTOS_DIR.resolve()),
-        "count": len(enriched),
-        "buildings": enriched,
+        "count": len(combined),
+        "reportes_locales": len(local_reports),
+        "buildings": combined,
     }
+
+
+@app.post("/api/reports/persona", status_code=201)
+async def report_missing_person(
+    full_name: str = Form(...),
+    last_known_location: str = Form(...),
+    reporter_contact: str = Form(...),
+    photo: UploadFile = File(...),
+    cedula: Optional[str] = Form(None),
+    age: Optional[str] = Form(None),
+    gender: Optional[str] = Form(None),
+    last_seen_date: Optional[str] = Form(None),
+    distinguishing_marks: Optional[str] = Form(None),
+    reporter_name: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await create_person_report(
+        session,
+        full_name=full_name,
+        last_known_location=last_known_location,
+        reporter_contact=reporter_contact,
+        photo=photo,
+        cedula=cedula,
+        age=age,
+        gender=gender,
+        last_seen_date=last_seen_date,
+        distinguishing_marks=distinguishing_marks,
+        reporter_name=reporter_name,
+    )
+    await commit_with_retry(session)
+    return result
+
+
+@app.post("/api/reports/edificio", status_code=201)
+async def report_damaged_building(
+    name: str = Form(...),
+    address: str = Form(...),
+    city: str = Form(...),
+    damage_level: str = Form(...),
+    reporter_contact: str = Form(...),
+    photo: UploadFile = File(...),
+    zone: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    reporter_name: Optional[str] = Form(None),
+    lat: Optional[str] = Form(None),
+    lng: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await create_building_report(
+        session,
+        name=name,
+        address=address,
+        city=city,
+        damage_level=damage_level,
+        reporter_contact=reporter_contact,
+        photo=photo,
+        zone=zone,
+        notes=notes,
+        reporter_name=reporter_name,
+        lat=lat,
+        lng=lng,
+    )
+    await commit_with_retry(session)
+    return result
+
+
+@app.get("/api/reports/edificios")
+async def list_local_building_reports(session: AsyncSession = Depends(get_session)):
+    items = await list_building_reports(session, limit=500)
+    return {"count": len(items), "buildings": items}
 
 
 @app.get("/api/cameras")

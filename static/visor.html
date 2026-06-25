@@ -1028,6 +1028,122 @@
     .modal-dl dt { color: var(--muted); min-width: 90px; }
     .modal-dl dd { flex: 1; }
     .updated-at { font-size: 0.68rem; color: var(--muted); margin-top: 0.5rem; }
+    .btn-report {
+      background: linear-gradient(135deg, #8b1a1a, #5c1212);
+      border-color: #a63d3d;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .btn-report.building {
+      background: linear-gradient(135deg, #1e3a5f, #142a45);
+      border-color: #3d6a9a;
+    }
+    .report-fab {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      align-items: flex-end;
+    }
+    .report-fab button {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      padding: 0.65rem 1rem;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+    .report-form {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .report-form label {
+      display: grid;
+      gap: 0.3rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .report-form label.req::after {
+      content: " *";
+      color: var(--ven-red);
+    }
+    .report-form input,
+    .report-form select,
+    .report-form textarea {
+      width: 100%;
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      padding: 0.55rem 0.7rem;
+    }
+    .report-form textarea { min-height: 72px; resize: vertical; }
+    .report-form .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+    .photo-upload {
+      border: 2px dashed var(--line);
+      border-radius: 10px;
+      padding: 0.85rem;
+      text-align: center;
+      background: var(--panel2);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .photo-upload:hover { border-color: var(--accent); }
+    .photo-upload.has-file { border-color: var(--localizado); border-style: solid; }
+    .photo-upload img {
+      max-height: 160px;
+      width: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+      display: none;
+    }
+    .photo-upload.has-file img { display: block; }
+    .photo-upload .hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; }
+    .report-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      flex-wrap: wrap;
+    }
+    .report-actions button[type="submit"] {
+      flex: 1;
+      background: #1a4d35;
+      border-color: #2d8b5c;
+      font-weight: 700;
+    }
+    .report-actions button[type="button"] {
+      background: transparent;
+      border-color: var(--line);
+    }
+    .report-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.45;
+      padding: 0.55rem 0.65rem;
+      background: rgba(201,162,39,0.08);
+      border: 1px solid rgba(201,162,39,0.25);
+      border-radius: 8px;
+    }
+    .local-report-tag {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.12rem 0.4rem;
+      border-radius: 5px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(30,58,95,0.45);
+      color: #9ec5ff;
+      vertical-align: middle;
+    }
     .camera-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1225,6 +1341,7 @@
           <option value="">Todos los estados</option>
         </select>
         <button id="btn-search" class="primary">Buscar</button>
+        <button type="button" id="btn-report-person" class="btn-report">+ Reportar persona</button>
         <input id="goto-id" type="number" min="1" placeholder="ID" style="max-width:70px" />
         <button id="btn-goto">Perfil</button>
       </div>
@@ -1252,6 +1369,7 @@
           <option value="total">Colapso total</option>
         </select>
         <button id="btn-search-buildings" class="primary">Buscar</button>
+        <button type="button" id="btn-report-building" class="btn-report building">+ Reportar edificio</button>
       </div>
       <div class="legend">
         <span><i class="p"></i>Parcial</span>
@@ -1405,6 +1523,135 @@
       <img id="modal-photo" alt="" style="display:none" />
       <dl class="modal-dl" id="modal-body"></dl>
       <a id="modal-link" href="https://terremotovenezuela.com/" target="_blank" rel="noopener">Ver en terremotovenezuela.com ↗</a>
+    </div>
+  </div>
+
+  <div class="report-fab" aria-label="Acciones de reporte">
+    <button type="button" id="fab-report-person" class="btn-report">👤 Reportar persona</button>
+    <button type="button" id="fab-report-building" class="btn-report building">🏢 Reportar edificio</button>
+  </div>
+
+  <div class="modal-overlay" id="report-person-modal">
+    <div class="modal report-modal">
+      <button class="close" id="report-person-close" aria-label="Cerrar">×</button>
+      <h2>Reportar persona desaparecida</h2>
+      <p class="report-note">Todos los reportes requieren <strong>fotografía</strong> y datos de contacto. La información se publica de inmediato en el tablero SAR.</p>
+      <form id="report-person-form" class="report-form">
+        <label class="req">Nombre completo
+          <input name="full_name" required minlength="3" placeholder="Ej. María González Pérez" />
+        </label>
+        <label class="req">Fotografía de la persona
+          <div class="photo-upload" id="person-photo-box">
+            <input type="file" name="photo" id="person-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" required hidden />
+            <div>📷 Toca para subir foto <strong>(obligatoria)</strong></div>
+            <img id="person-photo-preview" alt="Vista previa" />
+            <div class="hint">JPG, PNG o WebP · máx. 10 MB</div>
+          </div>
+        </label>
+        <div class="row-2">
+          <label>Cédula
+            <input name="cedula" placeholder="Ej. 12.345.678" />
+          </label>
+          <label>Edad
+            <input name="age" type="number" min="0" max="120" placeholder="Años" />
+          </label>
+        </div>
+        <div class="row-2">
+          <label>Género
+            <select name="gender">
+              <option value="">—</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Femenino</option>
+              <option value="otro">Otro</option>
+            </select>
+          </label>
+          <label>Última vez vista
+            <input name="last_seen_date" placeholder="Ej. 24/06/2026" />
+          </label>
+        </div>
+        <label class="req">Última ubicación conocida
+          <input name="last_known_location" required minlength="5" placeholder="Barrio, edificio, calle, ciudad…" />
+        </label>
+        <label>Señas particulares / ropa
+          <textarea name="distinguishing_marks" placeholder="Tatuajes, cicatrices, color de ropa, etc."></textarea>
+        </label>
+        <div class="row-2">
+          <label>Su nombre (quien reporta)
+            <input name="reporter_name" placeholder="Opcional" />
+          </label>
+          <label class="req">Su teléfono o correo
+            <input name="reporter_contact" required minlength="6" placeholder="0412-0000000" />
+          </label>
+        </div>
+        <div class="report-actions">
+          <button type="button" id="report-person-cancel">Cancelar</button>
+          <button type="submit" id="report-person-submit">Enviar reporte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="report-building-modal">
+    <div class="modal report-modal">
+      <button class="close" id="report-building-close" aria-label="Cerrar">×</button>
+      <h2>Reportar edificio dañado</h2>
+      <p class="report-note">Suba una <strong>foto del daño</strong> y complete la ubicación. El reporte aparece en el mapa y listado al instante.</p>
+      <form id="report-building-form" class="report-form">
+        <label class="req">Nombre del edificio o conjunto
+          <input name="name" required minlength="2" placeholder="Ej. Residencias Bello Monte" />
+        </label>
+        <label class="req">Fotografía del daño
+          <div class="photo-upload" id="building-photo-box">
+            <input type="file" name="photo" id="building-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" required hidden />
+            <div>📷 Toca para subir foto <strong>(obligatoria)</strong></div>
+            <img id="building-photo-preview" alt="Vista previa" />
+            <div class="hint">JPG, PNG o WebP · máx. 10 MB</div>
+          </div>
+        </label>
+        <label class="req">Dirección
+          <input name="address" required minlength="5" placeholder="Calle, avenida, referencia…" />
+        </label>
+        <div class="row-2">
+          <label class="req">Ciudad
+            <input name="city" required minlength="2" placeholder="Caracas" />
+          </label>
+          <label>Zona / municipio
+            <input name="zone" placeholder="La Candelaria" />
+          </label>
+        </div>
+        <label class="req">Nivel de daño
+          <select name="damage_level" required>
+            <option value="">Seleccione…</option>
+            <option value="parcial">Daño parcial</option>
+            <option value="severo">Daño severo</option>
+            <option value="total">Colapso total</option>
+          </select>
+        </label>
+        <label>Descripción del daño
+          <textarea name="notes" placeholder="Grietas, columnas, evacuación, personas atrapadas…"></textarea>
+        </label>
+        <div class="row-2">
+          <label>Latitud
+            <input name="lat" id="report-building-lat" placeholder="10.50" />
+          </label>
+          <label>Longitud
+            <input name="lng" id="report-building-lng" placeholder="-66.90" />
+          </label>
+        </div>
+        <button type="button" id="report-building-geo" style="width:100%">📍 Usar mi ubicación actual</button>
+        <div class="row-2">
+          <label>Su nombre (quien reporta)
+            <input name="reporter_name" placeholder="Opcional" />
+          </label>
+          <label class="req">Su teléfono o correo
+            <input name="reporter_contact" required minlength="6" placeholder="0412-0000000" />
+          </label>
+        </div>
+        <div class="report-actions">
+          <button type="button" id="report-building-cancel">Cancelar</button>
+          <button type="submit" id="report-building-submit">Enviar reporte</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1664,7 +1911,7 @@
       card.innerHTML = `
         ${imgBlock}
         <div class="body">
-          <h3><a href="${href}">${p.full_name}</a></h3>
+          <h3><a href="${href}">${p.full_name}</a>${p.is_local_report ? '<span class="local-report-tag">Reporte</span>' : ""}</h3>
           ${p.cedula ? `<div class="cedula-tag">CI: ${p.cedula}</div>` : ""}
           <p>${p.age ? p.age + " años · " : ""}${p.last_known_location || "Sin ubicación"}</p>
           ${compact ? "" : `<p>${(p.distinguishing_marks || "").slice(0, 80)}</p>`}
@@ -1740,11 +1987,11 @@
       card.innerHTML = `
         ${photo}
         <div class="body">
-          <h3>${b.name || "Edificio sin nombre"}</h3>
+          <h3>${b.name || "Edificio sin nombre"}${b.is_local_report ? '<span class="local-report-tag">Reporte</span>' : ""}</h3>
           <p>${b.address || ""}</p>
           <p>${[b.zone, b.city].filter(Boolean).join(" · ")}</p>
           <span class="badge">${dmg}</span>
-          ${b.has_local_photo ? '<span class="cedula-tag">📁 Foto local</span>' : src ? '<span class="cedula-tag">🌐 Foto en vivo</span>' : ""}
+          ${b.is_local_report ? '<span class="cedula-tag">📢 Reporte comunidad</span>' : b.has_local_photo ? '<span class="cedula-tag">📁 Foto local</span>' : src ? '<span class="cedula-tag">🌐 Foto en vivo</span>' : ""}
         </div>`;
       card.onclick = () => openBuildingModal(b);
       return card;
@@ -1768,6 +2015,7 @@
         ["Daño", b.damage_level],
         ["Estado", b.status],
         ["Notas", b.notes],
+        ["Contacto reportante", b.reporter_contact],
         ["Actualizado", b.last_updated_at ? new Date(b.last_updated_at).toLocaleString("es-VE") : null],
         ["Coordenadas", b.lat && b.lng ? `${b.lat}, ${b.lng}` : null],
       ];
@@ -2704,6 +2952,157 @@
       ws.onerror = () => ws.close();
     }
 
+    function openReportPersonModal() {
+      document.getElementById("report-person-modal").classList.add("open");
+    }
+
+    function openReportBuildingModal() {
+      document.getElementById("report-building-modal").classList.add("open");
+    }
+
+    function closeReportModals() {
+      document.getElementById("report-person-modal").classList.remove("open");
+      document.getElementById("report-building-modal").classList.remove("open");
+    }
+
+    function bindPhotoUpload(boxId, inputId, previewId) {
+      const box = document.getElementById(boxId);
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+      box.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => {
+        const file = input.files?.[0];
+        if (!file) {
+          box.classList.remove("has-file");
+          preview.removeAttribute("src");
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          showToast("La foto supera 10 MB");
+          input.value = "";
+          return;
+        }
+        preview.src = URL.createObjectURL(file);
+        box.classList.add("has-file");
+      });
+    }
+
+    async function submitReportForm(formId, endpoint, onSuccess) {
+      const form = document.getElementById(formId);
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const photoInput = form.querySelector('input[type="file"][name="photo"]');
+      if (!photoInput?.files?.[0]) {
+        showToast("La fotografía es obligatoria");
+        return;
+      }
+      const fd = new FormData(form);
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Enviando…";
+      try {
+        const res = await fetch(`${API}${endpoint}`, { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = Array.isArray(data.detail)
+            ? data.detail.map((d) => d.msg || d).join(", ")
+            : (data.detail || data.message);
+          throw new Error(detail || "No se pudo enviar el reporte");
+        }
+        showToast(data.message || "Reporte enviado");
+        updateTicker(`✅ Nuevo reporte: ${data.full_name || data.name || "registrado"}`);
+        form.reset();
+        form.querySelectorAll(".photo-upload").forEach((el) => el.classList.remove("has-file"));
+        form.querySelectorAll("img[id$='-preview']").forEach((img) => img.removeAttribute("src"));
+        closeReportModals();
+        if (onSuccess) await onSuccess(data);
+      } catch (err) {
+        showToast(err.message || "Error al enviar");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Enviar reporte";
+      }
+    }
+
+    function bindReportForms() {
+      bindPhotoUpload("person-photo-box", "person-photo-input", "person-photo-preview");
+      bindPhotoUpload("building-photo-box", "building-photo-input", "building-photo-preview");
+
+      ["btn-report-person", "fab-report-person"].forEach((id) => {
+        document.getElementById(id).addEventListener("click", openReportPersonModal);
+      });
+      ["btn-report-building", "fab-report-building"].forEach((id) => {
+        document.getElementById(id).addEventListener("click", openReportBuildingModal);
+      });
+      document.getElementById("report-person-close").onclick = closeReportModals;
+      document.getElementById("report-person-cancel").onclick = closeReportModals;
+      document.getElementById("report-building-close").onclick = closeReportModals;
+      document.getElementById("report-building-cancel").onclick = closeReportModals;
+      document.getElementById("report-person-modal").onclick = (e) => {
+        if (e.target.id === "report-person-modal") closeReportModals();
+      };
+      document.getElementById("report-building-modal").onclick = (e) => {
+        if (e.target.id === "report-building-modal") closeReportModals();
+      };
+
+      document.getElementById("report-building-geo").onclick = () => {
+        if (!navigator.geolocation) {
+          showToast("Geolocalización no disponible");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            document.getElementById("report-building-lat").value = pos.coords.latitude.toFixed(6);
+            document.getElementById("report-building-lng").value = pos.coords.longitude.toFixed(6);
+            showToast("Ubicación capturada");
+          },
+          () => showToast("No se pudo obtener ubicación"),
+          { enableHighAccuracy: true, timeout: 12000 }
+        );
+      };
+
+      document.getElementById("report-person-form").onsubmit = (e) => {
+        e.preventDefault();
+        submitReportForm("report-person-form", "/api/reports/persona", async (data) => {
+          const incoming = {
+            id: data.id,
+            external_id: data.external_id,
+            full_name: data.full_name,
+            local_photo_url: data.local_photo_url,
+            status: data.status || "desaparecido",
+            is_local_report: true,
+          };
+          if (matchesPersonFilter(incoming) && !personState.searchQuery) {
+            const grid = document.getElementById("grid");
+            const empty = grid.querySelector(".empty");
+            if (empty) empty.remove();
+            appendPersonCards([incoming], true);
+            personState.total += 1;
+            updateListMeta();
+          }
+          loadDashboard();
+        });
+      };
+
+      document.getElementById("report-building-form").onsubmit = (e) => {
+        e.preventDefault();
+        submitReportForm("report-building-form", "/api/reports/edificio", async (data) => {
+          allBuildings = mergeBuildings([{
+            id: data.id,
+            name: data.name,
+            damage_level: data.damage_level,
+            local_photo_url: data.local_photo_url,
+            main_photo_url: data.local_photo_url,
+            has_local_photo: true,
+            is_local_report: true,
+            last_updated_at: new Date().toISOString(),
+          }], allBuildings);
+          renderBuildings();
+          renderUnified();
+          if (mapInitialized) refreshMapMarkers();
+          loadBuildings(true);
+        });
+      };
+    }
+
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.onclick = () => {
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
@@ -2746,6 +3145,7 @@
 
     bindMapControls();
     bindEmergencyControls();
+    bindReportForms();
     loadEmergencias();
 
     loadDashboard();
