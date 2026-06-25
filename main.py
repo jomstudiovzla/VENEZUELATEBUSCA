@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import cv2
+import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,7 +40,14 @@ from scraper_realtime import RealtimeScraper
 from building_photo_worker import BuildingPhotoWorker
 from camera_service import SNAPSHOT_DIR as CAMERA_SNAPSHOT_DIR, camera_service
 from terremoto_ingestor import TerremotoVenezuelaClient, fetch_live_unified_stats
-from terremoto_photos import BUILDING_PHOTOS_DIR, enrich_building, get_building_photo_stats
+from terremoto_photos import (
+    BUILDING_PHOTOS_DIR,
+    download_building_photo,
+    enrich_building,
+    get_building_photo_stats,
+    local_photo_url_for,
+    pick_building_photo_url,
+)
 from terremoto_realtime import TerremotoRealtimeWorker
 from stats_dashboard import collect_dashboard_stats, get_live_stats_cache, update_live_stats_cache
 from database import (
@@ -207,11 +215,30 @@ async def _background_sync() -> None:
 
     try:
         async with async_session_factory() as session:
-            count = await session.scalar(select(func.count()).select_from(MissingVictim))
-        if not count:
-            await run_sync(download_photos=False, extract_embeddings=False)
+            local_count = int(await session.scalar(select(func.count()).select_from(MissingVictim)) or 0)
+
+        async with DesaparecidosIngestor() as ingestor:
+            probe = await ingestor.fetch_page(page=1, page_size=1)
+            source_total = int(probe.get("total") or probe.get("counts", {}).get("total") or 0)
+
+        gap = max(0, source_total - local_count)
+        if local_count == 0:
+            logger.info("Base vacía; sincronización completa inicial…")
+            await run_sync(download_photos=True, extract_embeddings=False)
+        elif gap > 500:
+            logger.info(
+                "Brecha de %d registros (local=%d, fuente=%d); sincronización completa en curso…",
+                gap,
+                local_count,
+                source_total,
+            )
+            await run_sync(download_photos=True, extract_embeddings=False)
         else:
-            logger.info("Base con %d registros; omitiendo re-sync inicial", count)
+            logger.info(
+                "Base al día | local=%d | fuente=%d | scraper incremental activo",
+                local_count,
+                source_total,
+            )
     except Exception:
         logger.exception("Sincronización automática fallida")
 
@@ -1215,6 +1242,48 @@ async def trigger_photo_download(limit: Optional[int] = None):
 
     sync_task = asyncio.create_task(_run())
     return {"status": "started", "limit": limit}
+
+
+@app.post("/sync/building-photos")
+async def trigger_building_photo_sync():
+    """Descarga en lote las fotos de edificios que aún no están en building_photos/."""
+    if building_photo_worker is None:
+        raise HTTPException(503, "Worker de fotos de edificios no iniciado")
+
+    async def _run() -> dict[str, int]:
+        downloaded = 0
+        failed = 0
+        async with TerremotoVenezuelaClient() as client:
+            buildings = await client.fetch_all_buildings(page_size=200)
+        async with httpx.AsyncClient(timeout=90.0, follow_redirects=True) as http:
+            for building in buildings:
+                building_id = building.get("id")
+                source = pick_building_photo_url(building)
+                if not building_id or not source or local_photo_url_for(building_id, source):
+                    continue
+                path = await download_building_photo(building_id, source, client=http)
+                if path:
+                    downloaded += 1
+                    local_url = f"/building-photos/{path.name}"
+                    payload = enrich_building(building)
+                    payload["local_photo_url"] = local_url
+                    payload["main_photo_url"] = local_url
+                    payload["has_local_photo"] = True
+                    await missing_updates_bus.publish("building_photo_ready", payload)
+                    await victim_room_manager.broadcast("building_photo_ready", payload)
+                else:
+                    failed += 1
+        return {"downloaded": downloaded, "failed": failed, "total_buildings": len(buildings)}
+
+    async def _task_wrapper():
+        try:
+            result = await _run()
+            logger.info("Sync fotos edificios | descargadas=%d | fallidas=%d", result["downloaded"], result["failed"])
+        except Exception:
+            logger.exception("Sync fotos edificios fallida")
+
+    asyncio.create_task(_task_wrapper())
+    return {"status": "started"}
 
 
 @app.post("/victims", status_code=201)

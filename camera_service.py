@@ -502,12 +502,20 @@ class CameraNetworkService:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._pending_detections: list[dict[str, Any]] = []
 
+    def _hydrate_snapshot(self, camera_id: str, runtime: CameraRuntime) -> None:
+        snap_path = SNAPSHOT_DIR / f"{camera_id}_live.jpg"
+        if snap_path.exists() and snap_path.stat().st_size > 0:
+            runtime.latest_snapshot = f"/camera-snapshots/{camera_id}_live.jpg"
+
     def load_configs(self) -> None:
         for cfg in load_camera_configs():
             if cfg.id not in self.cameras:
-                self.cameras[cfg.id] = CameraRuntime(config=cfg)
+                runtime = CameraRuntime(config=cfg)
+                self._hydrate_snapshot(cfg.id, runtime)
+                self.cameras[cfg.id] = runtime
             else:
                 self.cameras[cfg.id].config = cfg
+                self._hydrate_snapshot(cfg.id, self.cameras[cfg.id])
 
     async def start_all(self) -> None:
         if self._started:

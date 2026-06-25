@@ -2387,6 +2387,8 @@
       const noSignal = feed.querySelector(".no-signal");
       const liveSrc = cam.live_stream_url || `/api/cameras/${cam.id}/live.mjpg`;
 
+      const snapSrc = cam.latest_snapshot || cam.ultima_deteccion?.snapshot_url || null;
+
       if (isLive) {
         noSignal.style.display = "none";
         img.style.display = "block";
@@ -2395,6 +2397,12 @@
           img.dataset.streamUrl = liveSrc;
           img.src = `${liveSrc}?t=${Date.now()}`;
         }
+      } else if (snapSrc) {
+        noSignal.style.display = "none";
+        img.style.display = "block";
+        img.alt = `${cam.nombre} — última captura SAR`;
+        img.dataset.streamUrl = "";
+        img.src = `${snapSrc}?t=${Date.now()}`;
       } else {
         img.style.display = "none";
         img.removeAttribute("src");

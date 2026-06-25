@@ -112,6 +112,7 @@ class RealtimeScraper:
         self._task: Optional[asyncio.Task] = None
         self._known_hashes: dict[str, str] = {}
         self._last_source_total = 0
+        self._catchup_page = 1
         self.stats = ScrapeStats()
         self._on_event = on_event
 
@@ -267,13 +268,39 @@ class RealtimeScraper:
                 self.stats.sin_contacto = api_counts.get("sinContacto", dom_stats.get("sin_contacto", 0))
                 self.stats.localizado = api_counts.get("localizado", dom_stats.get("localizado", 0))
 
-                pages_to_scan = 1
-                if source_total > self._last_source_total:
-                    delta_pages = max(1, (source_total - self._last_source_total) // settings.sync_page_size + 1)
+                async with async_session_factory() as session:
+                    local_count = int(
+                        await session.scalar(select(func.count()).select_from(MissingVictim)) or 0
+                    )
+
+                total_pages = max(1, (source_total + settings.sync_page_size - 1) // settings.sync_page_size)
+                page_numbers: list[int]
+
+                if source_total > local_count + 50:
+                    batch = min(25, max(self.max_incremental_pages * 5, 10))
+                    page_numbers = [
+                        ((self._catchup_page - 1 + i) % total_pages) + 1 for i in range(batch)
+                    ]
+                    self._catchup_page = (self._catchup_page + batch - 1) % total_pages + 1
+                    logger.info(
+                        "Catch-up activo | local=%d fuente=%d | páginas %s…",
+                        local_count,
+                        source_total,
+                        page_numbers[:3],
+                    )
+                elif source_total > self._last_source_total:
+                    delta_pages = max(
+                        1,
+                        (source_total - self._last_source_total) // settings.sync_page_size + 1,
+                    )
                     pages_to_scan = min(delta_pages, self.max_incremental_pages)
+                    page_numbers = list(range(1, pages_to_scan + 1))
+                else:
+                    page_numbers = [1]
+
                 self._last_source_total = source_total
 
-                for page in range(1, pages_to_scan + 1):
+                for page in page_numbers:
                     payload = first_page if page == 1 else await ingestor.fetch_page(
                         page=page, page_size=settings.sync_page_size
                     )
@@ -343,7 +370,6 @@ class RealtimeScraper:
                 self._known_hashes[victim.external_id] = compute_record_hash(record)
 
             total = await session.scalar(select(func.count()).select_from(MissingVictim))
-            self._last_source_total = total or 0
             logger.info("Precargados %d hashes | registros locales=%d", len(self._known_hashes), total or 0)
 
     async def run_forever(self) -> None:

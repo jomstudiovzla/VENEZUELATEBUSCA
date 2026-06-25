@@ -93,6 +93,35 @@ class TerremotoVenezuelaClient:
         response.raise_for_status()
         return response.json()
 
+    async def fetch_all_buildings(self, page_size: int = 200) -> list[dict[str, Any]]:
+        total = await self.fetch_building_count()
+        if total <= 0:
+            return []
+
+        buildings: list[dict[str, Any]] = []
+        offset = 0
+        while offset < total:
+            params: dict[str, Any] = {
+                "select": "id,name,address,city,zone,lat,lng,damage_level,status,main_photo_url,media_urls,notes,last_updated_at,created_at",
+                "order": "last_updated_at.desc",
+                "limit": page_size,
+                "offset": offset,
+            }
+            response = await self.client.get(
+                f"{self.base}/rest/v1/buildings",
+                headers=self._headers(),
+                params=params,
+            )
+            response.raise_for_status()
+            batch = response.json()
+            if not batch:
+                break
+            buildings.extend(batch)
+            offset += len(batch)
+            if len(batch) < page_size:
+                break
+        return buildings
+
     async def fetch_building_count(self) -> int:
         response = await self.client.head(
             f"{self.base}/rest/v1/buildings",

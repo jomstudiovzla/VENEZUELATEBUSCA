@@ -36,7 +36,7 @@ class BuildingPhotoWorker:
         self,
         batch_size: int = 6,
         pause_seconds: float = 2.0,
-        idle_seconds: float = 30.0,
+        idle_seconds: float = 12.0,
     ):
         self.batch_size = batch_size
         self.pause_seconds = pause_seconds
@@ -56,7 +56,7 @@ class BuildingPhotoWorker:
 
     async def _process_batch(self) -> int:
         async with TerremotoVenezuelaClient() as client:
-            buildings = await client.fetch_buildings(limit=200)
+            buildings = await client.fetch_all_buildings(page_size=200)
 
         pending: list[dict[str, Any]] = []
         for building in buildings:
@@ -65,7 +65,6 @@ class BuildingPhotoWorker:
             if not building_id or not source:
                 continue
             if local_photo_url_for(building_id, source):
-                self.stats.skipped += 1
                 continue
             pending.append(building)
 
