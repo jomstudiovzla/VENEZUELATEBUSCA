@@ -3,10 +3,14 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 if [ ! -d .venv ]; then
-  python3 -m venv .venv
+  chmod +x instalar.sh 2>/dev/null || true
+  ./instalar.sh
 fi
 source .venv/bin/activate
-pip install -q -r requirements.txt
+
+if ! python3 -c "import fastapi" 2>/dev/null; then
+  pip install -q -r requirements-core.txt
+fi
 if [ ! -f .env ]; then
   cp .env.example .env
 fi

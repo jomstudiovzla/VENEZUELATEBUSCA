@@ -57,9 +57,6 @@ from database import (
 )
 from reports import create_building_report, create_person_report, list_building_reports
 from height_estimator import HeightEstimator
-from rescue_matcher import RescueMatcher
-from tattoo_analyzer import TattooAnalyzer
-from victim_detector import YOLOv7OADetector, process_rescue_feed
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ojo_de_dios")
@@ -67,14 +64,18 @@ logger = logging.getLogger("ojo_de_dios")
 SNAPSHOT_DIR = Path("snapshots")
 SNAPSHOT_DIR.mkdir(exist_ok=True)
 
-detector: Optional[YOLOv7OADetector] = None
-tattoo_analyzer: Optional[TattooAnalyzer] = None
+detector = None
+tattoo_analyzer = None
 height_estimator = HeightEstimator()
-rescue_matcher: Optional[RescueMatcher] = None
+rescue_matcher = None
 
 
 def _get_ml_pipeline():
     global detector, tattoo_analyzer, rescue_matcher
+    from rescue_matcher import RescueMatcher
+    from tattoo_analyzer import TattooAnalyzer
+    from victim_detector import YOLOv7OADetector
+
     if detector is None:
         detector = YOLOv7OADetector()
     if tattoo_analyzer is None:
@@ -173,6 +174,8 @@ async def _run_feed_pipeline(feed_id: int, rtsp_url: str) -> None:
         await _process_human_frame(feed_id, frame, detections)
 
     try:
+        from victim_detector import process_rescue_feed
+
         det, _, _ = _get_ml_pipeline()
         await process_rescue_feed(rtsp_url, det, callback)
     except asyncio.CancelledError:
