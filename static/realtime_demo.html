@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Venezuela te Busca — Tiempo Real</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f1419; color: #e7ecf3; padding: 1.5rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.4rem; }
+    .status { font-size: 0.85rem; padding: 0.35rem 0.75rem; border-radius: 999px; }
+    .status.ok { background: #163d2a; color: #6fe3a8; }
+    .status.err { background: #3d1616; color: #f08080; }
+    #missing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .missing-card { background: #1a2332; border: 1px solid #2a3a52; border-radius: 12px; overflow: hidden; animation: fadeIn 0.4s ease; }
+    .missing-card img { width: 100%; height: 180px; object-fit: cover; display: block; }
+    .no-photo { height: 180px; display: grid; place-items: center; background: #111820; color: #6b7a90; }
+    .body { padding: 0.9rem; }
+    .body h3 { font-size: 1rem; margin-bottom: 0.35rem; }
+    .body p { font-size: 0.82rem; color: #9aabc3; line-height: 1.4; }
+    .marks { margin-top: 0.5rem; }
+    .badge { display: inline-block; margin-top: 0.6rem; font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase; }
+    .sin-contacto, .missing { background: #3d1e1e; color: #ff8f8f; }
+    .localizado, .located { background: #1e3d2a; color: #7dffb0; }
+    .flash-new { box-shadow: 0 0 0 2px #3d8bfd; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Venezuela te Busca — Desaparecidos en Tiempo Real</h1>
+    <span id="ws-status" class="status err">Conectando…</span>
+  </header>
+  <div id="missing-grid"></div>
+  <script src="/static/realtime_client.js"></script>
+</body>
+</html>

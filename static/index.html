@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Venezuela te Busca — Tablero de Triaje</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #141b24;
+      --border: #243044;
+      --text: #e8eef7;
+      --muted: #8fa3bf;
+      --desaparecido: #f0c040;
+      --desaparecido-bg: #3a3018;
+      --localizado: #3dd68c;
+      --localizado-bg: #143528;
+      --fallecido: #f05d5d;
+      --fallecido-bg: #2a1212;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: #0f1620;
+      border-bottom: 2px solid #c0392b;
+    }
+    h1 { font-size: 1.25rem; letter-spacing: 0.02em; }
+    .meta { display: flex; gap: 0.75rem; align-items: center; font-size: 0.85rem; }
+    .pill {
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .pill.ok { color: var(--localizado); border-color: #2d6b4f; }
+    .pill.err { color: var(--fallecido); border-color: #6b2d2d; }
+    .legend {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .legend .d::before { background: var(--desaparecido); }
+    .legend .l::before { background: var(--localizado); }
+    .legend .f::before { background: var(--fallecido); }
+    #victim-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.85rem;
+      padding: 1rem 1.5rem 2rem;
+    }
+    .victim-card {
+      background: var(--panel);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+    }
+    .victim-card.flash { animation: pulse 0.6s ease; }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+    .victim-card.desaparecido {
+      border-color: var(--desaparecido);
+      box-shadow: 0 0 0 1px #5a4a18 inset;
+      background: linear-gradient(180deg, var(--desaparecido-bg), var(--panel));
+    }
+    .victim-card.localizado {
+      border-color: var(--localizado);
+      box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
+      background: linear-gradient(180deg, var(--localizado-bg), var(--panel));
+    }
+    .victim-card.fallecido {
+      border-color: #1a1a1a;
+      background: linear-gradient(180deg, var(--fallecido-bg), #0a0a0a);
+      opacity: 0.92;
+    }
+    .victim-card.fallecido .photo,
+    .victim-card.fallecido .no-photo {
+      filter: grayscale(0.85) brightness(0.55);
+    }
+    .photo, .no-photo {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+      background: #0a1018;
+    }
+    .no-photo {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .body { padding: 0.75rem; }
+    .body h3 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+    .body p { font-size: 0.78rem; color: var(--muted); line-height: 1.35; }
+    .status-badge {
+      display: inline-block;
+      margin-top: 0.55rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .desaparecido .status-badge { background: #5a4a18; color: var(--desaparecido); }
+    .localizado .status-badge { background: #1a4d35; color: var(--localizado); }
+    .fallecido .status-badge { background: #1a0a0a; color: var(--fallecido); }
+    .actions {
+      display: flex;
+      gap: 0.35rem;
+      margin-top: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .actions button {
+      flex: 1;
+      min-width: 70px;
+      border: 1px solid var(--border);
+      background: #1a2330;
+      color: var(--text);
+      font-size: 0.68rem;
+      padding: 0.35rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .actions button:hover { filter: brightness(1.15); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Venezuela te Busca — Tablero de Triaje y Rescate</h1>
+    <div class="meta">
+      <span id="count-label" class="pill">0 víctimas</span>
+      <span id="photo-label" class="pill">Fotos: …</span>
+      <span id="ws-status" class="pill err">Conectando WS…</span>
+    </div>
+  </header>
+  <div class="legend">
+    <span class="d">Desaparecido</span>
+    <span class="l">Localizado</span>
+    <span class="f">Fallecido</span>
+  </div>
+  <main id="victim-grid"></main>
+
+  <script>
+    const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/status_updates`;
+    const API_BASE = "";
+    const grid = document.getElementById("victim-grid");
+    const wsStatus = document.getElementById("ws-status");
+    const countLabel = document.getElementById("count-label");
+    const photoLabel = document.getElementById("photo-label");
+
+    const STATUS_CLASS = {
+      desaparecido: "desaparecido",
+      localizado: "localizado",
+      fallecido: "fallecido",
+    };
+
+    function setWsStatus(ok, text) {
+      wsStatus.textContent = text;
+      wsStatus.className = "pill " + (ok ? "ok" : "err");
+    }
+
+    function applyStatusClass(card, status) {
+      card.classList.remove("desaparecido", "localizado", "fallecido", "flash");
+      const cls = STATUS_CLASS[status] || "desaparecido";
+      card.classList.add(cls, "flash");
+      const badge = card.querySelector(".status-badge");
+      if (badge) badge.textContent = status;
+    }
+
+    function buildCard(person) {
+      const card = document.createElement("article");
+      card.className = `victim-card ${STATUS_CLASS[person.status] || "desaparecido"}`;
+      card.id = `victim-${person.id}`;
+      card.dataset.id = person.id;
+
+      const src = person.local_photo_url || person.photo_url;
+      const photo = src
+        ? `<img class="photo" data-photo-id="${person.id}" src="${src}" alt="${person.full_name}" loading="lazy" />`
+        : `<div class="no-photo" data-photo-id="${person.id}">Descargando foto…</div>`;
+
+      card.innerHTML = `
+        ${photo}
+        <div class="body">
+          <h3><a href="/victima/${person.id}" style="color:inherit;text-decoration:none">${person.full_name}</a></h3>
+          <p>${person.age ? person.age + " años · " : ""}${person.last_known_location || "Ubicación desconocida"}</p>
+          <p>${person.distinguishing_marks || ""}</p>
+          <span class="status-badge">${person.status}</span>
+          <div class="actions">
+            <button data-status="desaparecido">Desaparecido</button>
+            <button data-status="localizado">Localizado</button>
+            <button data-status="fallecido">Fallecido</button>
+          </div>
+        </div>
+      `;
+
+      card.querySelectorAll(".actions button").forEach((btn) => {
+        btn.addEventListener("click", () => updateStatus(person.id, btn.dataset.status));
+      });
+
+      return card;
+    }
+
+    async function updateStatus(id, nuevoEstado) {
+      await fetch(`${API_BASE}/missing/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nuevo_estado: nuevoEstado }),
+      });
+    }
+
+    function applyPhoto(card, data) {
+      const src = data.local_photo_url || data.photo_url;
+      if (!src) return;
+      let img = card.querySelector(`[data-photo-id="${data.id}"]`);
+      if (img && img.tagName === "IMG") {
+        img.src = src;
+        return;
+      }
+      const panel = card.querySelector(".photo, .no-photo");
+      if (panel) {
+        const el = document.createElement("img");
+        el.className = "photo";
+        el.dataset.photoId = data.id;
+        el.src = src;
+        el.alt = data.full_name || "";
+        panel.replaceWith(el);
+      }
+    }
+
+    function handleStatusEvent(data) {
+      const card = document.getElementById(`victim-${data.id}`);
+      if (card) {
+        applyStatusClass(card, data.nuevo_estado);
+      } else {
+        const newCard = buildCard({
+          id: data.id,
+          full_name: data.full_name,
+          last_known_location: data.last_known_location,
+          photo_url: data.photo_url,
+          status: data.nuevo_estado,
+          distinguishing_marks: "",
+        });
+        grid.prepend(newCard);
+        countLabel.textContent = `${grid.children.length} víctimas`;
+      }
+    }
+
+    function connectWebSocket() {
+      const ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => setWsStatus(true, "Tiempo real activo");
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (!msg.data) return;
+        if (msg.event === "status_changed") handleStatusEvent(msg.data);
+        if (msg.event === "photo_ready") {
+          const card = document.getElementById(`victim-${msg.data.id}`);
+          if (card) applyPhoto(card, msg.data);
+          refreshPhotoStats();
+        }
+        if (msg.event === "new_missing") {
+          const card = buildCard({
+            id: msg.data.id,
+            full_name: msg.data.full_name,
+            age: msg.data.age,
+            last_known_location: msg.data.last_known_location,
+            distinguishing_marks: msg.data.distinguishing_marks,
+            photo_url: msg.data.photo_url,
+            local_photo_url: msg.data.local_photo_url,
+            status: msg.data.status || msg.data.nuevo_estado || "desaparecido",
+          });
+          grid.prepend(card);
+          countLabel.textContent = `${grid.children.length} víctimas`;
+        }
+      };
+
+      ws.onclose = () => {
+        setWsStatus(false, "Reconectando en 3s…");
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    async function refreshPhotoStats() {
+      try {
+        const res = await fetch(`${API_BASE}/api/photos/stats`);
+        const s = await res.json();
+        photoLabel.textContent = `Fotos: ${s.descargadas}/${s.con_url} (${s.pendientes} pend.)`;
+      } catch (_) {}
+    }
+
+    async function loadBoard() {
+      const res = await fetch(`${API_BASE}/missing?limit=120`);
+      const persons = await res.json();
+      grid.innerHTML = "";
+      persons.forEach((p) => grid.appendChild(buildCard(p)));
+      countLabel.textContent = `${persons.length} víctimas`;
+      refreshPhotoStats();
+      setInterval(refreshPhotoStats, 12000);
+    }
+
+    loadBoard();
+    connectWebSocket();
+  </script>
+</body>
+</html>

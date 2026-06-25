@@ -1,0 +1,30 @@
+# Entorno
+.venv/
+.env
+__pycache__/
+*.py[cod]
+*.pyo
+.DS_Store
+
+# Base de datos local (se genera al sincronizar)
+ojo_de_dios.db
+ojo_de_dios.db-*
+
+# Cachés de fotos y snapshots (se descargan en runtime)
+reference_photos/*
+!reference_photos/.gitkeep
+building_photos/*
+!building_photos/.gitkeep
+camera_snapshots/*
+!camera_snapshots/.gitkeep
+snapshots/*
+!snapshots/.gitkeep
+
+# Logs de runtime
+camera_detections.jsonl
+
+# Modelos / pesos grandes (opcional)
+*.pt
+*.pth
+*.onnx
+weights/

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=http://127.0.0.1:8000/" />
+  <title>Venezuela te Busca — Abrir Visor</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0b0f14;
+      color: #e8eef7;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 2rem;
+    }
+    a {
+      color: #3dd68c;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    p { color: #8fa3bf; margin-top: 1rem; line-height: 1.6; }
+    code { background: #1a2330; padding: 0.2rem 0.5rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Venezuela te Busca</h1>
+    <p>Redirigiendo al visor en tiempo real…</p>
+    <p><a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
+    <p>Si no abre, arranca el servidor:<br><code>uvicorn main:app --host 0.0.0.0 --port 8000</code></p>
+  </div>
+  <script>window.location.href = "http://127.0.0.1:8000/";</script>
+</body>
+</html>
