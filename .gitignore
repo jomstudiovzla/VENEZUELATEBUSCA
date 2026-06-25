@@ -1,6 +1,9 @@
 # Entorno
 .venv/
 cloudflared
+.run/
+logs/
+PUBLIC_URL.txt
 .env
 __pycache__/
 *.py[cod]
