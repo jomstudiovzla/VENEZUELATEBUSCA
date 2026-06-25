@@ -43,7 +43,22 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 Abrir en el navegador: **http://127.0.0.1:8000/**
 
-La primera ejecución sincroniza desaparecidos y edificios; las fotos se descargan en segundo plano.
+O en un solo paso:
+
+```bash
+chmod +x arrancar.sh && ./arrancar.sh
+```
+
+## Datos incluidos en el repositorio
+
+El repo trae listo para usar:
+
+- `ojo_de_dios.db` — base con ~40k desaparecidos sincronizados
+- `reference_photos/` — fotos locales de desaparecidos (~4.800)
+- `building_photos/` — fotos de edificios dañados (~200)
+- `config/` — cámaras, emergencias por operadora
+
+Al arrancar, el sistema sigue actualizando en vivo desde las APIs oficiales.
 
 ## Cámaras en vivo
 
