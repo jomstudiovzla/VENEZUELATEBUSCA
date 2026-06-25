@@ -54,6 +54,17 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+_sync_running = False
+
+
+def mark_sync_running(running: bool) -> None:
+    global _sync_running
+    _sync_running = running
+
+
+def is_sync_running() -> bool:
+    return _sync_running
+
 
 class Base(DeclarativeBase):
     pass

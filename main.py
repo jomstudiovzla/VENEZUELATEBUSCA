@@ -62,6 +62,8 @@ from database import (
     commit_with_retry,
     get_session,
     init_db,
+    is_sync_running,
+    mark_sync_running,
     settings,
 )
 from reports import create_building_report, create_person_report, list_building_reports
@@ -224,7 +226,11 @@ async def _background_sync() -> None:
         gap = max(0, source_total - local_count)
         if local_count == 0:
             logger.info("Base vacía; sincronización completa inicial…")
-            await run_sync(download_photos=True, extract_embeddings=False)
+            mark_sync_running(True)
+            try:
+                await run_sync(download_photos=False, extract_embeddings=False)
+            finally:
+                mark_sync_running(False)
         elif gap > 500:
             logger.info(
                 "Brecha de %d registros (local=%d, fuente=%d); sincronización completa en curso…",
@@ -232,7 +238,11 @@ async def _background_sync() -> None:
                 local_count,
                 source_total,
             )
-            await run_sync(download_photos=True, extract_embeddings=False)
+            mark_sync_running(True)
+            try:
+                await run_sync(download_photos=False, extract_embeddings=False)
+            finally:
+                mark_sync_running(False)
         else:
             logger.info(
                 "Base al día | local=%d | fuente=%d | scraper incremental activo",
@@ -1220,12 +1230,16 @@ async def trigger_sync(
         return {"status": "already_running"}
 
     async def _run():
-        await run_sync(
-            estado=estado,
-            max_pages=max_pages,
-            download_photos=download_photos,
-            extract_embeddings=extract_embeddings,
-        )
+        mark_sync_running(True)
+        try:
+            await run_sync(
+                estado=estado,
+                max_pages=max_pages,
+                download_photos=download_photos,
+                extract_embeddings=extract_embeddings,
+            )
+        finally:
+            mark_sync_running(False)
 
     sync_task = asyncio.create_task(_run())
     return {"status": "started", "estado": estado or "todos"}

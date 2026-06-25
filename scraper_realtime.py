@@ -24,7 +24,7 @@ from data_ingestor import (
     map_source_status,
 )
 from connection_manager import victim_room_manager
-from database import MissingStatus, MissingVictim, async_session_factory, init_db, settings
+from database import MissingStatus, MissingVictim, async_session_factory, init_db, is_sync_running, settings
 from event_bus import missing_updates_bus
 from stats_dashboard import broadcast_dashboard_stats
 
@@ -255,6 +255,10 @@ class RealtimeScraper:
         updated = 0
         unchanged = 0
         api_offline = False
+
+        if is_sync_running():
+            logger.debug("Scraper en pausa: sincronización completa activa")
+            return {"created": 0, "updated": 0, "unchanged": 0}
 
         try:
             async with DesaparecidosIngestor() as ingestor:
