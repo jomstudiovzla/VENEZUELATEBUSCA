@@ -10,9 +10,11 @@ __pycache__/
 *.pyo
 .DS_Store
 
-# SQLite temporal (solo se versiona ojo_de_dios.db consolidado)
+# SQLite temporal
 ojo_de_dios.db-shm
 ojo_de_dios.db-wal
+red_esperanza.db-shm
+red_esperanza.db-wal
 
 # Snapshots de cámaras en runtime (opcional, se regeneran)
 camera_snapshots/*

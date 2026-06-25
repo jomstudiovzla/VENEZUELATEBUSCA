@@ -1,0 +1,10 @@
+{
+  "name": "Red de Esperanza",
+  "short_name": "Esperanza",
+  "description": "Sistema de Rescate, Acopio y Refugios — Venezuela 2026",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1f33",
+  "theme_color": "#1a3a5c",
+  "lang": "es-VE"
+}

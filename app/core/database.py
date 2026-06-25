@@ -1,4 +1,4 @@
-"""Motor de base de datos y sesiones async."""
+"""Motor async — compatible SQLite y PostgreSQL."""
 
 from __future__ import annotations
 

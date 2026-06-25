@@ -1,4 +1,3 @@
-from app.services.ai_processor import AIProcessor
-from app.services.biometrics import BiometricsService
+from app.services.semantic_matcher import run_matching_cycle
 
-__all__ = ["AIProcessor", "BiometricsService"]
+__all__ = ["run_matching_cycle"]

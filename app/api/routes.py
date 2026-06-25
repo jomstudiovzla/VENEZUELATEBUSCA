@@ -1,521 +1,476 @@
-"""Rutas API del Centro de Comando SAR-DVI — solo fuentes consensuadas."""
+"""API REST — Red de Esperanza (offline-first + logística)."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import uuid
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Any, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.connection_manager import command_center_manager
+from app.core.connection_manager import dashboard_ws
 from app.core.database import async_session_factory, get_session
-from app.core.paths import DRONE_FRAMES, EVIDENCE_VIDEOS, MEDICAL_PHOTOS, ROOT
 from app.models.models import (
-    CrowdsourcedEvidence,
-    DroneTelemetry,
-    EvidenceStatus,
-    FeedStatus,
-    MedicalTriage,
-    MissingStatus,
-    MissingVictim,
-    SosSignal,
-    SosVitalStatus,
-    VoluntaryCamera,
+    Inventory,
+    InventoryStatus,
+    MissingReport,
+    Mission,
+    MissionStatus,
+    ReportStatus,
+    Shelter,
+    ShelterType,
+    Survivor,
 )
-from app.services.ai_processor import AIProcessor
-from app.services.biometrics import BiometricsService
-from app.video.processor import VideoProcessor
+from app.services.semantic_matcher import run_matching_cycle
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-ai_processor = AIProcessor()
-biometrics = BiometricsService()
-video_processor = VideoProcessor()
 
-ALLOWED_IMAGE = {".jpg", ".jpeg", ".png", ".webp"}
-ALLOWED_VIDEO = {".mp4", ".mov", ".webm", ".avi", ".mkv"}
-MAX_BYTES = settings.max_upload_mb * 1024 * 1024
+# ── Schemas ──────────────────────────────────────────────────────────────────
 
-
-class SosPanicPayload(BaseModel):
+class ShelterCreate(BaseModel):
+    name: str
+    shelter_type: ShelterType = ShelterType.REFUGIO
+    address: str
+    city: str
+    contact_phone: Optional[str] = None
+    max_capacity: int = 100
     lat: float
     lng: float
-    vital_status: SosVitalStatus
-    message: Optional[str] = None
-    contact_phone: Optional[str] = None
-    device_token: Optional[str] = None
 
 
-class VoluntaryCameraPayload(BaseModel):
-    condominium_name: str
-    contact_name: str
-    contact_phone: str
-    rtsp_url: str
-    city: str
-    zone: Optional[str] = None
-    terms_accepted: bool = Field(..., description="Debe ser true para registrar la cámara")
-    terms_version: str = "2026-06-01"
+class InventoryCreate(BaseModel):
+    shelter_id: str
+    item_name: str
+    quantity: int
+    unit: str = "unidades"
+    status: InventoryStatus
+    notes: Optional[str] = None
 
 
-class DroneTelemetryPayload(BaseModel):
-    operator_name: str
-    authorization_ref: str
-    stream_url: str
-    zone: str
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    altitude_m: Optional[float] = None
-    photogrammetry_url: Optional[str] = None
+class InventoryUpdate(BaseModel):
+    quantity: Optional[int] = None
+    status: Optional[InventoryStatus] = None
+    notes: Optional[str] = None
 
 
-async def _save_upload(upload: UploadFile, dest_dir: Path, allowed_ext: set[str]) -> Path:
-    if not upload.filename:
-        raise HTTPException(400, "Archivo requerido")
-    ext = Path(upload.filename).suffix.lower()
-    if ext not in allowed_ext:
-        raise HTTPException(400, f"Formato no permitido. Use: {', '.join(sorted(allowed_ext))}")
-    data = await upload.read()
-    if len(data) > MAX_BYTES:
-        raise HTTPException(400, f"Archivo excede {settings.max_upload_mb} MB")
-    dest = dest_dir / f"{uuid.uuid4().hex}{ext}"
-    dest.write_bytes(data)
-    return dest
+class SurvivorCreate(BaseModel):
+    shelter_id: str
+    name: str = "Desconocido"
+    estado_medico: str = "estable"
+    caracteristicas_fisicas: dict[str, Any] = Field(default_factory=dict)
+    client_sync_id: Optional[str] = None
 
 
-async def _broadcast_match(triage: MedicalTriage, match_data: dict) -> None:
-    payload = {
-        "triage_id": triage.id,
-        "case_code": triage.case_code,
-        "hospital_name": triage.hospital_name,
-        "victim_id": match_data.get("victim_id"),
-        "victim_name": match_data.get("victim_name"),
-        "confidence": match_data.get("confidence"),
-        "tattoo_similarity": match_data.get("tattoo_similarity"),
-        "height_delta_cm": match_data.get("height_delta_cm"),
-    }
-    await command_center_manager.broadcast("victim_identified", payload)
+class SurvivorSyncItem(BaseModel):
+    client_sync_id: str
+    shelter_id: str
+    name: str = "Desconocido"
+    estado_medico: str = "estable"
+    caracteristicas_fisicas: dict[str, Any] = Field(default_factory=dict)
+    registered_at: Optional[str] = None
 
 
-async def _process_triage_background(triage_id: str) -> None:
-    async with async_session_factory() as session:
-        triage = await session.get(MedicalTriage, triage_id)
-        if not triage:
-            return
-        try:
-            analysis = biometrics.analyze_medical_photo(ROOT / triage.photo_path)
-            triage.estatura_estimada_cm = analysis.estatura_estimada_cm
-            triage.tatuajes_clasificados = analysis.tatuajes_clasificados
-            triage.tattoo_embeddings = analysis.tattoo_embeddings
-            await session.flush()
+class SurvivorSyncBatch(BaseModel):
+    items: list[SurvivorSyncItem]
 
-            match = await biometrics.match_triage_against_missing(session, triage)
-            if match:
-                triage.matched_victim_id = match.victim_id
-                triage.match_confidence = match.confidence
-                triage.match_details = {
-                    "victim_name": match.victim_name,
-                    "tattoo_similarity": match.tattoo_similarity,
-                    "height_delta_cm": match.height_delta_cm,
-                }
-                await session.commit()
-                await _broadcast_match(
-                    triage,
+
+class MissingReportCreate(BaseModel):
+    seeker_name: str
+    seeker_contact: str
+    missing_person_name: str
+    description: str
+    last_seen_location: Optional[str] = None
+    physical_traits: Optional[dict[str, Any]] = None
+
+
+class MissionCreate(BaseModel):
+    title: str
+    description: str
+    mission_type: str = "rescate"
+    address: str
+    lat: float
+    lng: float
+    shelter_id: Optional[str] = None
+    priority: int = 2
+
+
+class MissionAccept(BaseModel):
+    volunteer_name: str
+    volunteer_contact: str
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+async def _after_survivor(session: AsyncSession, survivor: Survivor, background: BackgroundTasks) -> None:
+    shelter = await session.get(Shelter, survivor.shelter_id)
+    if shelter:
+        shelter.current_occupancy += 1
+        await session.flush()
+
+    async def _match_and_broadcast():
+        async with async_session_factory() as s:
+            matches = await run_matching_cycle(s)
+            await s.commit()
+            for m in matches:
+                await dashboard_ws.broadcast(
+                    "possible_match",
                     {
-                        "victim_id": match.victim_id,
-                        "victim_name": match.victim_name,
-                        "confidence": match.confidence,
-                        "tattoo_similarity": match.tattoo_similarity,
-                        "height_delta_cm": match.height_delta_cm,
+                        "report_name": m.report_name,
+                        "survivor_name": m.survivor_name,
+                        "score": m.score,
+                        "tokens": m.matched_tokens,
                     },
                 )
-            else:
-                await session.commit()
-        except Exception:
-            logger.exception("Error procesando triaje %s", triage_id)
-            await session.rollback()
+        await dashboard_ws.broadcast(
+            "survivor_registered",
+            {
+                "id": survivor.id,
+                "name": survivor.name,
+                "shelter": shelter.name if shelter else "",
+                "estado_medico": survivor.estado_medico,
+                "caracteristicas": survivor.caracteristicas_fisicas,
+            },
+        )
+
+    background.add_task(_match_and_broadcast)
 
 
-async def _process_evidence_background(evidence_id: str) -> None:
-    async with async_session_factory() as session:
-        evidence = await session.get(CrowdsourcedEvidence, evidence_id)
-        if not evidence:
-            return
-        evidence.processing_status = EvidenceStatus.PROCESANDO
-        await session.commit()
+def _shelter_dict(s: Shelter) -> dict:
+    occ_pct = round(s.current_occupancy / max(s.max_capacity, 1) * 100, 1)
+    return {
+        "id": s.id,
+        "name": s.name,
+        "shelter_type": s.shelter_type.value,
+        "address": s.address,
+        "city": s.city,
+        "contact_phone": s.contact_phone,
+        "max_capacity": s.max_capacity,
+        "current_occupancy": s.current_occupancy,
+        "occupancy_pct": occ_pct,
+        "lat": s.lat,
+        "lng": s.lng,
+    }
 
-        try:
-            result = video_processor.analyze_evidence(ROOT / evidence.video_path, evidence_id)
-            evidence.processing_status = EvidenceStatus.PROCESADO
-            evidence.detections_count = result.get("total_detections", 0)
-            evidence.ai_summary = result
-            await session.commit()
-            await command_center_manager.broadcast(
-                "evidence_processed",
-                {"id": evidence_id, "detections": evidence.detections_count},
-            )
-        except Exception as exc:
-            evidence.processing_status = EvidenceStatus.ERROR
-            evidence.ai_summary = {"error": str(exc)}
-            await session.commit()
 
+# ── Health & Dashboard ───────────────────────────────────────────────────────
 
 @router.get("/health")
 async def health():
     return {
         "status": "operational",
-        "service": "ojo-de-dios-sar-dvi",
-        "mode": "crowdsourcing_autorizado",
-        "realtime_workers": settings.enable_realtime_workers,
-        "ws_clients": command_center_manager.active_count,
+        "service": "red-de-esperanza",
+        "mode": "logistica_humanitaria",
+        "ws_clients": dashboard_ws.active_count,
     }
 
 
-@router.get("/api/dashboard/summary")
-async def dashboard_summary(session: AsyncSession = Depends(get_session)):
-    missing_total = await session.scalar(select(func.count()).select_from(MissingVictim)) or 0
-    sos_active = await session.scalar(
-        select(func.count()).where(SosSignal.is_active == True)  # noqa: E712
+@router.get("/api/dashboard")
+async def dashboard(session: AsyncSession = Depends(get_session)):
+    shelters = (await session.execute(select(Shelter).where(Shelter.is_active == True))).scalars().all()  # noqa: E712
+    missions_open = await session.scalar(
+        select(func.count()).where(Mission.status.in_([MissionStatus.ABIERTA, MissionStatus.ACEPTADA, MissionStatus.EN_CURSO]))
     ) or 0
-    triage_count = await session.scalar(select(func.count()).select_from(MedicalTriage)) or 0
-    cameras = await session.scalar(
-        select(func.count()).where(VoluntaryCamera.is_active == True)  # noqa: E712
+    survivors_total = await session.scalar(select(func.count()).select_from(Survivor)) or 0
+    reports_active = await session.scalar(
+        select(func.count()).where(MissingReport.status.in_([ReportStatus.ACTIVO, ReportStatus.POSIBLE_MATCH]))
     ) or 0
-    evidence = await session.scalar(select(func.count()).select_from(CrowdsourcedEvidence)) or 0
-    drones = await session.scalar(select(func.count()).select_from(DroneTelemetry)) or 0
-    matches = await session.scalar(
-        select(func.count()).where(MedicalTriage.matched_victim_id.isnot(None))
+    needed = await session.scalar(
+        select(func.count()).where(Inventory.status == InventoryStatus.NECESITADO)
     ) or 0
     return {
-        "missing_persons": missing_total,
-        "sos_active": sos_active,
-        "medical_triage": triage_count,
-        "voluntary_cameras": cameras,
-        "crowdsourced_evidence": evidence,
-        "drone_feeds": drones,
-        "victim_matches": matches,
+        "shelters": len(shelters),
+        "missions_active": missions_open,
+        "survivors_total": survivors_total,
+        "missing_reports_active": reports_active,
+        "items_needed": needed,
     }
 
 
-@router.post("/api/sos/panic", status_code=201)
-async def sos_panic(payload: SosPanicPayload, session: AsyncSession = Depends(get_session)):
-    signal = SosSignal(
-        lat=payload.lat,
-        lng=payload.lng,
-        vital_status=payload.vital_status,
-        message=payload.message,
-        contact_phone=payload.contact_phone,
-        device_token=payload.device_token,
-        is_active=True,
-    )
-    session.add(signal)
+# ── Shelters ─────────────────────────────────────────────────────────────────
+
+@router.get("/api/shelters")
+async def list_shelters(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(Shelter).where(Shelter.is_active == True).order_by(Shelter.name))).scalars().all()  # noqa: E712
+    return {"items": [_shelter_dict(s) for s in rows]}
+
+
+@router.post("/api/shelters", status_code=201)
+async def create_shelter(payload: ShelterCreate, session: AsyncSession = Depends(get_session)):
+    shelter = Shelter(**payload.model_dump())
+    session.add(shelter)
     await session.flush()
-    data = {
-        "id": signal.id,
-        "lat": signal.lat,
-        "lng": signal.lng,
-        "vital_status": signal.vital_status.value,
-        "message": signal.message,
-        "created_at": signal.created_at.isoformat() if signal.created_at else None,
+    return _shelter_dict(shelter)
+
+
+# ── Inventory ────────────────────────────────────────────────────────────────
+
+@router.get("/api/inventory")
+async def list_inventory(shelter_id: Optional[str] = None, session: AsyncSession = Depends(get_session)):
+    q = select(Inventory).order_by(Inventory.updated_at.desc())
+    if shelter_id:
+        q = q.where(Inventory.shelter_id == shelter_id)
+    rows = (await session.execute(q.limit(500))).scalars().all()
+    return {
+        "items": [
+            {
+                "id": i.id,
+                "shelter_id": i.shelter_id,
+                "item_name": i.item_name,
+                "quantity": i.quantity,
+                "unit": i.unit,
+                "status": i.status.value,
+                "notes": i.notes,
+                "updated_at": i.updated_at.isoformat() if i.updated_at else None,
+            }
+            for i in rows
+        ]
     }
-    await command_center_manager.broadcast("sos_signal", data)
+
+
+@router.post("/api/inventory", status_code=201)
+async def create_inventory(payload: InventoryCreate, session: AsyncSession = Depends(get_session)):
+    if not await session.get(Shelter, payload.shelter_id):
+        raise HTTPException(404, "Refugio no encontrado")
+    item = Inventory(**payload.model_dump())
+    session.add(item)
+    await session.flush()
+    shelter = await session.get(Shelter, payload.shelter_id)
+    data = {
+        "id": item.id,
+        "shelter_id": item.shelter_id,
+        "shelter_name": shelter.name if shelter else "",
+        "item_name": item.item_name,
+        "quantity": item.quantity,
+        "status": item.status.value,
+    }
+    await dashboard_ws.broadcast("inventory_updated", data)
     return data
 
 
-@router.get("/api/sos/signals")
-async def list_sos_signals(active_only: bool = True, session: AsyncSession = Depends(get_session)):
-    query = select(SosSignal).order_by(SosSignal.created_at.desc()).limit(500)
-    if active_only:
-        query = query.where(SosSignal.is_active == True)  # noqa: E712
-    result = await session.execute(query)
-    return [
-        {
+@router.patch("/api/inventory/{item_id}")
+async def update_inventory(item_id: str, payload: InventoryUpdate, session: AsyncSession = Depends(get_session)):
+    item = await session.get(Inventory, item_id)
+    if not item:
+        raise HTTPException(404, "Item no encontrado")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    await session.flush()
+    shelter = await session.get(Shelter, item.shelter_id)
+    data = {
+        "id": item.id,
+        "shelter_name": shelter.name if shelter else "",
+        "item_name": item.item_name,
+        "quantity": item.quantity,
+        "status": item.status.value,
+    }
+    await dashboard_ws.broadcast("inventory_updated", data)
+    return data
+
+
+# ── Survivors (offline-first) ────────────────────────────────────────────────
+
+@router.post("/survivors", status_code=201)
+@router.post("/api/survivors", status_code=201)
+async def register_survivor(
+    payload: SurvivorCreate,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+):
+    if not await session.get(Shelter, payload.shelter_id):
+        raise HTTPException(404, "Refugio no encontrado")
+
+    if payload.client_sync_id:
+        existing = (
+            await session.execute(select(Survivor).where(Survivor.client_sync_id == payload.client_sync_id))
+        ).scalar_one_or_none()
+        if existing:
+            return {
+                "id": existing.id,
+                "sync_status": "already_synced",
+                "client_sync_id": existing.client_sync_id,
+            }
+
+    survivor = Survivor(
+        shelter_id=payload.shelter_id,
+        name=payload.name or "Desconocido",
+        estado_medico=payload.estado_medico,
+        caracteristicas_fisicas=payload.caracteristicas_fisicas,
+        client_sync_id=payload.client_sync_id,
+        synced_offline=bool(payload.client_sync_id),
+    )
+    session.add(survivor)
+    await session.flush()
+    await _after_survivor(session, survivor, background_tasks)
+    return {
+        "id": survivor.id,
+        "sync_status": "synced",
+        "client_sync_id": survivor.client_sync_id,
+        "offline_queued": False,
+    }
+
+
+@router.post("/api/sync/batch", status_code=201)
+async def sync_survivors_batch(
+    payload: SurvivorSyncBatch,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+):
+    """Sincroniza cola offline de la PWA (idempotente por client_sync_id)."""
+    results = []
+    for item in payload.items:
+        existing = (
+            await session.execute(select(Survivor).where(Survivor.client_sync_id == item.client_sync_id))
+        ).scalar_one_or_none()
+        if existing:
+            results.append({"client_sync_id": item.client_sync_id, "status": "duplicate", "id": existing.id})
+            continue
+        if not await session.get(Shelter, item.shelter_id):
+            results.append({"client_sync_id": item.client_sync_id, "status": "error", "detail": "shelter_not_found"})
+            continue
+        survivor = Survivor(
+            shelter_id=item.shelter_id,
+            name=item.name,
+            estado_medico=item.estado_medico,
+            caracteristicas_fisicas=item.caracteristicas_fisicas,
+            client_sync_id=item.client_sync_id,
+            synced_offline=True,
+        )
+        session.add(survivor)
+        await session.flush()
+        await _after_survivor(session, survivor, background_tasks)
+        results.append({"client_sync_id": item.client_sync_id, "status": "synced", "id": survivor.id})
+    return {"synced": len([r for r in results if r["status"] == "synced"]), "results": results}
+
+
+@router.get("/api/survivors")
+async def list_survivors(limit: int = 50, session: AsyncSession = Depends(get_session)):
+    rows = (
+        await session.execute(select(Survivor).order_by(Survivor.registered_at.desc()).limit(min(limit, 200)))
+    ).scalars().all()
+    out = []
+    for s in rows:
+        shelter = await session.get(Shelter, s.shelter_id)
+        out.append({
             "id": s.id,
-            "lat": s.lat,
-            "lng": s.lng,
-            "vital_status": s.vital_status.value,
-            "message": s.message,
-            "contact_phone": s.contact_phone,
-            "is_active": s.is_active,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-        }
-        for s in result.scalars().all()
-    ]
+            "name": s.name,
+            "estado_medico": s.estado_medico,
+            "caracteristicas_fisicas": s.caracteristicas_fisicas,
+            "shelter_name": shelter.name if shelter else "",
+            "matched_report_id": s.matched_report_id,
+            "match_score": s.match_score,
+            "registered_at": s.registered_at.isoformat() if s.registered_at else None,
+        })
+    return {"items": out}
 
 
-@router.post("/api/triage/medical", status_code=201)
-async def register_medical_triage(
-    background_tasks: BackgroundTasks,
-    hospital_name: str = Form(...),
-    ward: Optional[str] = Form(None),
-    clinical_notes: Optional[str] = Form(None),
-    photo: UploadFile = File(...),
-    session: AsyncSession = Depends(get_session),
-):
-    photo_path = await _save_upload(photo, MEDICAL_PHOTOS, ALLOWED_IMAGE)
-    case_code = f"JD-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-    triage = MedicalTriage(
-        case_code=case_code,
-        hospital_name=hospital_name,
-        ward=ward,
-        photo_path=str(photo_path.relative_to(ROOT)),
-        clinical_notes=clinical_notes,
-    )
-    session.add(triage)
+# ── Missing Reports ──────────────────────────────────────────────────────────
+
+@router.post("/api/missing-reports", status_code=201)
+async def create_missing_report(payload: MissingReportCreate, session: AsyncSession = Depends(get_session)):
+    report = MissingReport(**payload.model_dump())
+    session.add(report)
     await session.flush()
-    background_tasks.add_task(_process_triage_background, triage.id)
+    return {"id": report.id, "missing_person_name": report.missing_person_name, "status": report.status.value}
+
+
+@router.get("/api/missing-reports")
+async def list_missing_reports(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(MissingReport).order_by(MissingReport.created_at.desc()).limit(200))).scalars().all()
     return {
-        "id": triage.id,
-        "case_code": case_code,
-        "hospital_name": hospital_name,
-        "photo_url": f"/{triage.photo_path}",
-        "status": "procesando_biometria",
-    }
-
-
-@router.get("/api/triage/medical")
-async def list_medical_triage(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(MedicalTriage).order_by(MedicalTriage.created_at.desc()).limit(200))
-    items = []
-    for t in result.scalars().all():
-        items.append(
+        "items": [
             {
-                "id": t.id,
-                "case_code": t.case_code,
-                "hospital_name": t.hospital_name,
-                "ward": t.ward,
-                "photo_url": f"/{t.photo_path}",
-                "estatura_estimada_cm": t.estatura_estimada_cm,
-                "tatuajes_clasificados": t.tatuajes_clasificados or [],
-                "matched_victim_id": t.matched_victim_id,
-                "match_confidence": t.match_confidence,
-                "match_details": t.match_details,
-                "clinical_notes": t.clinical_notes,
-                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "id": r.id,
+                "missing_person_name": r.missing_person_name,
+                "description": r.description,
+                "seeker_name": r.seeker_name,
+                "seeker_contact": r.seeker_contact,
+                "status": r.status.value,
+                "match_score": r.match_score,
+                "matched_survivor_id": r.matched_survivor_id,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
             }
-        )
-    return {"items": items, "count": len(items)}
-
-
-@router.post("/api/cameras/voluntary", status_code=201)
-async def register_voluntary_camera(
-    payload: VoluntaryCameraPayload,
-    session: AsyncSession = Depends(get_session),
-):
-    if not payload.terms_accepted:
-        raise HTTPException(400, "Debe aceptar los Términos y Condiciones para registrar la cámara")
-    if not payload.rtsp_url.lower().startswith("rtsp://"):
-        raise HTTPException(400, "Solo se aceptan URLs RTSP proporcionadas voluntariamente por el condominio")
-
-    camera = VoluntaryCamera(
-        condominium_name=payload.condominium_name,
-        contact_name=payload.contact_name,
-        contact_phone=payload.contact_phone,
-        rtsp_url=payload.rtsp_url,
-        city=payload.city,
-        zone=payload.zone,
-        terms_accepted=True,
-        terms_version=payload.terms_version,
-        terms_accepted_at=datetime.now(timezone.utc),
-        authorized_until=datetime.now(timezone.utc) + timedelta(days=30),
-        is_active=True,
-        status=FeedStatus.ACTIVE,
-    )
-    session.add(camera)
-    await session.flush()
-    data = {
-        "id": camera.id,
-        "condominium_name": camera.condominium_name,
-        "city": camera.city,
-        "zone": camera.zone,
-        "status": camera.status.value,
-        "authorized_until": camera.authorized_until.isoformat() if camera.authorized_until else None,
+            for r in rows
+        ]
     }
-    await command_center_manager.broadcast("voluntary_camera_registered", data)
+
+
+# ── Missions ─────────────────────────────────────────────────────────────────
+
+@router.get("/api/missions")
+async def list_missions(active_only: bool = True, session: AsyncSession = Depends(get_session)):
+    q = select(Mission).order_by(Mission.priority.desc(), Mission.created_at.desc())
+    if active_only:
+        q = q.where(Mission.status != MissionStatus.COMPLETADA)
+    rows = (await session.execute(q.limit(100))).scalars().all()
+    return {
+        "items": [
+            {
+                "id": m.id,
+                "title": m.title,
+                "description": m.description,
+                "mission_type": m.mission_type,
+                "address": m.address,
+                "lat": m.lat,
+                "lng": m.lng,
+                "status": m.status.value,
+                "priority": m.priority,
+                "volunteer_name": m.volunteer_name,
+                "volunteer_contact": m.volunteer_contact,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in rows
+        ]
+    }
+
+
+@router.post("/api/missions", status_code=201)
+async def create_mission(payload: MissionCreate, session: AsyncSession = Depends(get_session)):
+    mission = Mission(**payload.model_dump())
+    session.add(mission)
+    await session.flush()
+    data = {"id": mission.id, "title": mission.title, "address": mission.address, "priority": mission.priority}
+    await dashboard_ws.broadcast("mission_created", data)
     return data
 
 
-@router.get("/api/cameras/voluntary")
-async def list_voluntary_cameras(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(VoluntaryCamera).where(VoluntaryCamera.is_active == True).order_by(VoluntaryCamera.created_at.desc())  # noqa: E712
-    )
-    return {
-        "items": [
-            {
-                "id": c.id,
-                "condominium_name": c.condominium_name,
-                "contact_name": c.contact_name,
-                "city": c.city,
-                "zone": c.zone,
-                "status": c.status.value,
-                "terms_accepted_at": c.terms_accepted_at.isoformat() if c.terms_accepted_at else None,
-                "authorized_until": c.authorized_until.isoformat() if c.authorized_until else None,
-                "rtsp_url_masked": c.rtsp_url[:30] + "…" if len(c.rtsp_url) > 30 else c.rtsp_url,
-            }
-            for c in result.scalars().all()
-        ]
-    }
-
-
-@router.post("/api/evidence/upload", status_code=201)
-async def upload_crowdsourced_evidence(
-    background_tasks: BackgroundTasks,
-    uploader_name: str = Form(...),
-    contact_phone: str = Form(...),
-    location_description: str = Form(...),
-    description: Optional[str] = Form(None),
-    lat: Optional[float] = Form(None),
-    lng: Optional[float] = Form(None),
-    consent_given: bool = Form(True),
-    video: UploadFile = File(...),
-    session: AsyncSession = Depends(get_session),
-):
-    if not consent_given:
-        raise HTTPException(400, "Se requiere consentimiento explícito para procesar la evidencia")
-    video_path = await _save_upload(video, EVIDENCE_VIDEOS, ALLOWED_VIDEO)
-    evidence = CrowdsourcedEvidence(
-        uploader_name=uploader_name,
-        contact_phone=contact_phone,
-        video_path=str(video_path.relative_to(ROOT)),
-        location_description=location_description,
-        lat=lat,
-        lng=lng,
-        description=description,
-        consent_given=True,
-        processing_status=EvidenceStatus.PENDIENTE,
-    )
-    session.add(evidence)
-    await session.flush()
-    background_tasks.add_task(_process_evidence_background, evidence.id)
-    return {"id": evidence.id, "status": "pendiente", "video_url": f"/{evidence.video_path}"}
-
-
-@router.get("/api/evidence")
-async def list_evidence(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(CrowdsourcedEvidence).order_by(CrowdsourcedEvidence.created_at.desc()).limit(100)
-    )
-    return {
-        "items": [
-            {
-                "id": e.id,
-                "uploader_name": e.uploader_name,
-                "location_description": e.location_description,
-                "lat": e.lat,
-                "lng": e.lng,
-                "description": e.description,
-                "processing_status": e.processing_status.value,
-                "detections_count": e.detections_count,
-                "ai_summary": e.ai_summary,
-                "video_url": f"/{e.video_path}",
-                "created_at": e.created_at.isoformat() if e.created_at else None,
-            }
-            for e in result.scalars().all()
-        ]
-    }
-
-
-@router.post("/api/drones/telemetry", status_code=201)
-async def register_drone_telemetry(
-    payload: DroneTelemetryPayload,
-    session: AsyncSession = Depends(get_session),
-):
-    drone = DroneTelemetry(
-        operator_name=payload.operator_name,
-        authorization_ref=payload.authorization_ref,
-        stream_url=payload.stream_url,
-        zone=payload.zone,
-        lat=payload.lat,
-        lng=payload.lng,
-        altitude_m=payload.altitude_m,
-        photogrammetry_url=payload.photogrammetry_url,
-        status=FeedStatus.ACTIVE,
-    )
-    session.add(drone)
+@router.patch("/api/missions/{mission_id}/accept")
+async def accept_mission(mission_id: str, payload: MissionAccept, session: AsyncSession = Depends(get_session)):
+    mission = await session.get(Mission, mission_id)
+    if not mission:
+        raise HTTPException(404, "Misión no encontrada")
+    if mission.status != MissionStatus.ABIERTA:
+        raise HTTPException(400, "La misión ya fue asignada")
+    mission.status = MissionStatus.ACEPTADA
+    mission.volunteer_name = payload.volunteer_name
+    mission.volunteer_contact = payload.volunteer_contact
+    mission.accepted_at = datetime.now(timezone.utc)
     await session.flush()
     data = {
-        "id": drone.id,
-        "operator_name": drone.operator_name,
-        "zone": drone.zone,
-        "authorization_ref": drone.authorization_ref,
-        "photogrammetry_url": drone.photogrammetry_url,
+        "id": mission.id,
+        "title": mission.title,
+        "volunteer_name": mission.volunteer_name,
+        "address": mission.address,
     }
-    await command_center_manager.broadcast("drone_registered", data)
+    await dashboard_ws.broadcast("mission_accepted", data)
     return data
 
 
-@router.get("/api/drones/telemetry")
-async def list_drone_telemetry(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(DroneTelemetry).order_by(DroneTelemetry.created_at.desc()).limit(100))
-    return {
-        "items": [
-            {
-                "id": d.id,
-                "operator_name": d.operator_name,
-                "authorization_ref": d.authorization_ref,
-                "zone": d.zone,
-                "lat": d.lat,
-                "lng": d.lng,
-                "altitude_m": d.altitude_m,
-                "photogrammetry_url": d.photogrammetry_url,
-                "status": d.status.value,
-                "detections_count": d.detections_count,
-                "last_frame_at": d.last_frame_at.isoformat() if d.last_frame_at else None,
-            }
-            for d in result.scalars().all()
-        ]
-    }
+# ── WebSocket ────────────────────────────────────────────────────────────────
 
-
-@router.get("/api/missing")
-async def list_missing_local(
-    q: Optional[str] = None,
-    status: Optional[MissingStatus] = None,
-    limit: int = 50,
-    session: AsyncSession = Depends(get_session),
-):
-    query = select(MissingVictim).order_by(MissingVictim.updated_at.desc()).limit(min(limit, 200))
-    if status:
-        query = query.where(MissingVictim.status == status)
-    if q:
-        needle = f"%{q.strip()}%"
-        query = query.where(MissingVictim.full_name.ilike(needle))
-    result = await session.execute(query)
-    return [
-        {
-            "id": p.id,
-            "full_name": p.full_name,
-            "age": p.age or p.edad,
-            "status": p.status.value,
-            "photo_url": p.photo_url,
-            "local_photo": f"/photos/{Path(p.reference_photo_path).name}" if p.reference_photo_path else None,
-            "estatura_estimada_cm": p.estatura_estimada_cm or p.height_cm,
-            "last_known_location": p.last_known_location,
-        }
-        for p in result.scalars().all()
-    ]
-
-
-@router.websocket("/ws/command-center")
-async def command_center_ws(websocket: WebSocket):
-    conn_id = await command_center_manager.connect(websocket)
+@router.websocket("/ws/dashboard")
+async def dashboard_websocket(websocket: WebSocket):
+    conn_id = await dashboard_ws.connect(websocket)
     try:
-        await websocket.send_json(
-            {
-                "event": "connected",
-                "data": {"message": "Centro de Comando SAR-DVI conectado"},
-            }
-        )
+        await websocket.send_json({
+            "event": "connected",
+            "data": {"message": "Tablero de Esperanza conectado"},
+        })
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        await command_center_manager.disconnect(conn_id)
+        await dashboard_ws.disconnect(conn_id)

@@ -1,1 +1,1 @@
-"""Ojo de Dios — Centro de Comando SAR-DVI (crowdsourcing autorizado)."""
+"""Red de Esperanza — Sistema de Rescate, Acopio y Refugios."""
