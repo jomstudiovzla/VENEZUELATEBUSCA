@@ -635,6 +635,186 @@
       .map-sidebar { max-height: 42vh; border-right: none; border-bottom: 1px solid var(--line); }
       .map-main { min-height: 52vh; }
     }
+    .emergency-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      padding: 0.55rem 1.5rem;
+      background: linear-gradient(90deg, rgba(139,26,26,0.22), rgba(20,16,18,0.95) 35%, rgba(139,26,26,0.15));
+      border-bottom: 1px solid rgba(139,26,26,0.45);
+    }
+    .emergency-bar .label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #e8a0a0;
+      font-weight: 700;
+      margin-right: 0.25rem;
+    }
+    .emergency-quick {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid rgba(139,26,26,0.55);
+      background: rgba(20,16,18,0.9);
+      color: var(--text);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .emergency-quick:hover { border-color: #d4a0a0; transform: translateY(-1px); }
+    .emergency-quick .num { color: #ffb4b4; font-variant-numeric: tabular-nums; }
+    .emergency-bar .more {
+      margin-left: auto;
+      font-size: 0.72rem;
+      color: var(--accent);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      font-family: inherit;
+    }
+    .emergency-panel { padding: 1rem 1.5rem 1.5rem; }
+    .emergency-intro {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--ven-red);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .emergency-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .emergency-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      position: sticky;
+      top: 0.5rem;
+    }
+    .emergency-nav button {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .emergency-nav button.active {
+      border-color: var(--ven-red);
+      background: rgba(139,26,26,0.15);
+      color: var(--text);
+      font-weight: 700;
+    }
+    .emergency-zone-select {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 0.78rem;
+      margin-bottom: 0.5rem;
+    }
+    .emergency-content { min-width: 0; }
+    .emergency-section { display: none; }
+    .emergency-section.active { display: block; }
+    .emergency-section h3 {
+      font-family: Bitter, serif;
+      font-size: 1rem;
+      margin-bottom: 0.65rem;
+    }
+    .emergency-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.65rem;
+    }
+    .emergency-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .emergency-card.highlight { border-color: rgba(139,26,26,0.55); background: rgba(139,26,26,0.08); }
+    .emergency-card h4 { font-size: 0.86rem; line-height: 1.35; }
+    .emergency-card .org {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .emergency-card .number {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ffb4b4;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+    .emergency-card .note { font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
+    .emergency-card .actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: auto; }
+    .emergency-card .actions a, .emergency-card .actions button {
+      padding: 0.38rem 0.6rem;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 0.7rem;
+      text-decoration: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .emergency-card .actions a.call {
+      background: rgba(139,26,26,0.35);
+      border-color: rgba(139,26,26,0.6);
+      font-weight: 700;
+    }
+    .emergency-card .actions a:hover, .emergency-card .actions button:hover { border-color: var(--accent); }
+    .operator-card { border-top: 3px solid var(--line); }
+    .operator-benefit {
+      font-size: 0.72rem;
+      color: var(--ven-yellow);
+      line-height: 1.4;
+      padding: 0.45rem 0.55rem;
+      background: rgba(201,162,39,0.08);
+      border-radius: 6px;
+      border: 1px solid rgba(201,162,39,0.2);
+    }
+    .operator-zones {
+      font-size: 0.68rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .refugio-list {
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      background: var(--panel2);
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    .refugio-list h4 { font-size: 0.78rem; margin-bottom: 0.4rem; color: var(--accent); }
+    .refugio-list ul { margin: 0; padding-left: 1.1rem; font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+    @media (max-width: 800px) {
+      .emergency-layout { grid-template-columns: 1fr; }
+      .emergency-nav { flex-direction: row; flex-wrap: wrap; position: static; }
+      .emergency-bar .more { margin-left: 0; width: 100%; text-align: left; }
+    }
     footer {
       border-top: 1px solid var(--line);
       padding: 1rem 1.5rem 1.5rem;
@@ -944,7 +1124,16 @@
     <button class="tab" data-tab="unificado" role="tab">🔗 Vista unificada</button>
     <button class="tab" data-tab="mapa" role="tab">🗺️ Mapa terremoto</button>
     <button class="tab" data-tab="camaras" role="tab">📹 Cámaras SAR 24h</button>
+    <button class="tab" data-tab="emergencias" role="tab">📞 Emergencias</button>
   </nav>
+
+  <div class="emergency-bar" id="emergency-bar">
+    <span class="label">◆ Emergencia</span>
+    <a class="emergency-quick" href="tel:911"><span class="num">911</span> Nacional</a>
+    <a class="emergency-quick" href="tel:08008362567"><span class="num">0-800-TEMBLOR</span></a>
+    <a class="emergency-quick" href="tel:08007253661"><span class="num">0800-725-3661</span> PC Caracas</a>
+    <button type="button" class="more" id="btn-emergencias-tab">Ver todos por zona y operadora →</button>
+  </div>
 
   <div id="panel-desaparecidos" class="panel active">
     <div class="toolbar">
@@ -1019,6 +1208,51 @@
       <h2>◆ Posibles avistamientos — últimas 24 horas</h2>
       <div class="detection-list" id="detection-list">
         <div class="empty" style="padding:1rem">Sin detecciones registradas aún. El sistema analiza cada frame en busca de personas.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-emergencias" class="panel emergency-panel">
+    <div class="emergency-intro" id="emergency-intro">
+      <strong>Líneas oficiales y operadoras</strong> — Terremoto Venezuela, junio 2026.
+      Toca <em>Llamar</em> desde el celular. Las operadoras habilitaron llamadas y SMS gratuitos en varias zonas.
+      <span id="emergency-updated" style="display:block;margin-top:0.35rem;font-size:0.72rem"></span>
+    </div>
+    <div class="emergency-layout">
+      <nav class="emergency-nav" aria-label="Secciones de emergencia">
+        <select id="emergency-zone-pick" class="emergency-zone-select" aria-label="Seleccionar zona">
+          <option value="caracas">Caracas / DC</option>
+          <option value="la-guaira">La Guaira / Vargas</option>
+          <option value="valencia">Valencia / Carabobo</option>
+          <option value="maracay">Maracay / Aragua</option>
+          <option value="nacional">Todo Venezuela</option>
+        </select>
+        <button type="button" class="active" data-em-section="zona">📍 Por zona</button>
+        <button type="button" data-em-section="operadoras">📱 Por operadora</button>
+        <button type="button" data-em-section="nacional">🇻🇪 Nacional</button>
+        <button type="button" data-em-section="humanitario">🤝 Ayuda humanitaria</button>
+      </nav>
+      <div class="emergency-content">
+        <section id="em-section-zona" class="emergency-section active">
+          <h3 id="emergency-zone-title">Caracas / Municipio Libertador</h3>
+          <div class="emergency-grid" id="emergency-zone-grid"></div>
+          <div class="refugio-list" id="emergency-refugios" style="display:none">
+            <h4>Refugios y puntos de resguardo</h4>
+            <ul id="emergency-refugios-list"></ul>
+          </div>
+        </section>
+        <section id="em-section-operadoras" class="emergency-section">
+          <h3>Operadoras telefónicas — llamadas gratuitas en emergencia</h3>
+          <div class="emergency-grid" id="emergency-operators-grid"></div>
+        </section>
+        <section id="em-section-nacional" class="emergency-section">
+          <h3>Números nacionales</h3>
+          <div class="emergency-grid" id="emergency-national-grid"></div>
+        </section>
+        <section id="em-section-humanitario" class="emergency-section">
+          <h3>Canales humanitarios y búsqueda</h3>
+          <div class="emergency-grid" id="emergency-human-grid"></div>
+        </section>
       </div>
     </div>
   </div>
@@ -1126,6 +1360,7 @@
     let mapMarkersById = new Map();
     let mapState = { damage: "", city: "", search: "", selectedId: null };
     let mapInitialized = false;
+    let emergencyData = null;
     let tickerItems = ["Esperando datos en tiempo real…"];
 
     const PAGE_SIZE = 100;
@@ -2002,6 +2237,168 @@
       }, 120);
     }
 
+    function dialHref(item) {
+      const raw = item.numero_marcar || item.numero || "";
+      if (item.tipo === "whatsapp" && raw.startsWith("http")) return raw;
+      if (item.tipo === "email") return `mailto:${raw}`;
+      const tel = String(raw).replace(/[^\d+*#]/g, "");
+      return tel ? `tel:${tel}` : "#";
+    }
+
+    function copyNumber(num) {
+      const text = String(num || "");
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => showToast(`Copiado: ${text}`));
+      else showToast(text);
+    }
+
+    function emergencyCard(title, org, numero, notas, item, highlight) {
+      const card = document.createElement("article");
+      card.className = `emergency-card${highlight ? " highlight" : ""}`;
+      const isEmail = item?.tipo === "email";
+      const isWeb = item?.tipo === "web";
+      const callLabel = isEmail ? "Correo" : item?.tipo === "whatsapp" ? "WhatsApp" : isWeb ? "Abrir" : "Llamar";
+      const href = item ? dialHref(item) : `tel:${String(numero).replace(/[^\d+]/g, "")}`;
+      const webUrl = item?.url || (isWeb ? item?.numero_marcar : null);
+      card.innerHTML = `
+        ${org ? `<div class="org">${org}</div>` : ""}
+        <h4>${title}</h4>
+        <div class="number">${numero}</div>
+        ${notas ? `<div class="note">${notas}</div>` : ""}
+        <div class="actions">
+          ${isWeb ? `<a href="${webUrl}" target="_blank" rel="noopener" class="call">${callLabel}</a>` : `<a href="${href}" class="call" ${item?.tipo === "whatsapp" && href.startsWith("http") ? 'target="_blank" rel="noopener"' : ""}>${callLabel}</a>`}
+          ${isWeb ? "" : `<button type="button" data-copy="${String(numero).replace(/"/g, "")}">Copiar</button>`}
+        </div>`;
+      card.querySelector("[data-copy]")?.addEventListener("click", () => copyNumber(numero));
+      return card;
+    }
+
+    function renderEmergencyZone(zoneId) {
+      if (!emergencyData) return;
+      const zone = emergencyData.zonas.find((z) => z.id === zoneId) || emergencyData.zonas[0];
+      document.getElementById("emergency-zone-title").textContent = zone.nombre;
+      const grid = document.getElementById("emergency-zone-grid");
+      grid.innerHTML = "";
+      (zone.contactos || []).forEach((c, i) => {
+        grid.appendChild(emergencyCard(c.nombre, zone.estado, c.numero, c.notas, c, i === 0));
+      });
+      const refBox = document.getElementById("emergency-refugios");
+      const refList = document.getElementById("emergency-refugios-list");
+      if (zone.refugios?.length) {
+        refBox.style.display = "block";
+        refList.innerHTML = zone.refugios.map((r) => `<li>${r}</li>`).join("");
+      } else {
+        refBox.style.display = "none";
+      }
+      document.getElementById("emergency-zone-pick").value = zone.id;
+    }
+
+    function renderEmergencyOperators() {
+      const grid = document.getElementById("emergency-operators-grid");
+      grid.innerHTML = "";
+      (emergencyData?.operadoras || []).forEach((op) => {
+        const wrap = document.createElement("article");
+        wrap.className = "emergency-card operator-card";
+        wrap.style.borderTopColor = op.color || "var(--line)";
+        wrap.innerHTML = `
+          <div class="org">${op.nombre}</div>
+          <div class="operator-benefit">${op.beneficio_emergencia || ""}</div>
+          <div class="operator-zones"><strong>Zonas con beneficio:</strong> ${(op.zonas_cobertura_gratuita || []).join(" · ")}</div>
+          <div class="actions" style="flex-direction:column;align-items:stretch;gap:0.45rem"></div>`;
+        const actions = wrap.querySelector(".actions");
+        (op.canales || []).forEach((c) => {
+          const row = document.createElement("div");
+          row.style.display = "flex";
+          row.style.justifyContent = "space-between";
+          row.style.alignItems = "center";
+          row.style.gap = "0.5rem";
+          row.style.padding = "0.4rem 0";
+          row.style.borderTop = "1px solid var(--line)";
+          row.innerHTML = `<div><strong style="font-size:0.78rem">${c.nombre}</strong><br><span style="color:#ffb4b4;font-weight:800">${c.numero}</span>${c.notas ? `<br><span style="font-size:0.68rem;color:var(--muted)">${c.notas}</span>` : ""}</div>`;
+          const btns = document.createElement("div");
+          btns.style.display = "flex";
+          btns.style.gap = "0.3rem";
+          const href = dialHref(c);
+          const a = document.createElement("a");
+          a.href = href;
+          a.className = "call";
+          a.textContent = c.tipo === "whatsapp" ? "WA" : "Llamar";
+          if (c.tipo === "whatsapp" && href.startsWith("http")) {
+            a.target = "_blank";
+            a.rel = "noopener";
+          }
+          a.style.padding = "0.35rem 0.55rem";
+          a.style.borderRadius = "7px";
+          a.style.border = "1px solid var(--line)";
+          a.style.textDecoration = "none";
+          a.style.fontSize = "0.68rem";
+          btns.appendChild(a);
+          const copy = document.createElement("button");
+          copy.type = "button";
+          copy.textContent = "Copiar";
+          copy.style.fontSize = "0.68rem";
+          copy.onclick = () => copyNumber(c.numero);
+          btns.appendChild(copy);
+          row.appendChild(btns);
+          actions.appendChild(row);
+        });
+        grid.appendChild(wrap);
+      });
+    }
+
+    function renderEmergencyNational() {
+      const grid = document.getElementById("emergency-national-grid");
+      grid.innerHTML = "";
+      (emergencyData?.nacional || []).forEach((c, i) => {
+        grid.appendChild(emergencyCard(c.nombre, "Venezuela", c.numero, c.notas, c, i === 0));
+      });
+    }
+
+    function renderEmergencyHuman() {
+      const grid = document.getElementById("emergency-human-grid");
+      grid.innerHTML = "";
+      (emergencyData?.humanitario || []).forEach((h) => {
+        const url = h.url?.startsWith("/") ? `${location.origin}${h.url}` : h.url;
+        grid.appendChild(emergencyCard(h.nombre, "Enlace web", url.replace(/^https?:\/\//, ""), "Abrir en navegador", { ...h, url, tipo: "web" }, false));
+      });
+    }
+
+    function switchEmergencySection(section) {
+      document.querySelectorAll(".emergency-nav button[data-em-section]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.emSection === section);
+      });
+      document.querySelectorAll(".emergency-section").forEach((s) => s.classList.remove("active"));
+      document.getElementById(`em-section-${section}`)?.classList.add("active");
+    }
+
+    async function loadEmergencias() {
+      try {
+        const res = await fetch(`${API}/api/emergencias`);
+        emergencyData = await res.json();
+        document.getElementById("emergency-updated").textContent =
+          emergencyData.actualizado ? `Actualizado: ${emergencyData.actualizado}` : "";
+        renderEmergencyZone(document.getElementById("emergency-zone-pick").value || "caracas");
+        renderEmergencyOperators();
+        renderEmergencyNational();
+        renderEmergencyHuman();
+      } catch {
+        document.getElementById("emergency-intro").innerHTML =
+          "<strong style='color:#e8a0a0'>No se pudieron cargar los números.</strong> Use <a href='tel:911'>911</a> ante emergencia.";
+      }
+    }
+
+    function bindEmergencyControls() {
+      document.getElementById("emergency-zone-pick").addEventListener("change", (e) => {
+        renderEmergencyZone(e.target.value);
+        switchEmergencySection("zona");
+      });
+      document.querySelectorAll(".emergency-nav button[data-em-section]").forEach((btn) => {
+        btn.addEventListener("click", () => switchEmergencySection(btn.dataset.emSection));
+      });
+      document.getElementById("btn-emergencias-tab").addEventListener("click", () => {
+        document.querySelector('.tab[data-tab="emergencias"]').click();
+      });
+    }
+
     function bindMapControls() {
       document.getElementById("map-search").addEventListener("input", (e) => {
         mapState.search = e.target.value;
@@ -2156,6 +2553,9 @@
         if (tab.dataset.tab === "mapa") {
           setTimeout(() => initMap(), 80);
         }
+        if (tab.dataset.tab === "emergencias" && !emergencyData) {
+          loadEmergencias();
+        }
       };
     });
 
@@ -2185,6 +2585,8 @@
     };
 
     bindMapControls();
+    bindEmergencyControls();
+    loadEmergencias();
 
     loadLiveStats();
     loadPhotoStats();

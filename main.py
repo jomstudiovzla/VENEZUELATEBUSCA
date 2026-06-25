@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -292,6 +293,21 @@ async def photos_stats():
             "last_batch": photo_worker.stats.last_batch,
         }
     return stats
+
+
+EMERGENCIAS_CONFIG = Path("config/emergencias_venezuela.json")
+
+
+@app.get("/api/emergencias")
+async def emergencias_venezuela(zona: Optional[str] = None):
+    if not EMERGENCIAS_CONFIG.exists():
+        raise HTTPException(404, "Configuración de emergencias no encontrada")
+    data = json.loads(EMERGENCIAS_CONFIG.read_text(encoding="utf-8"))
+    if zona:
+        zonas = [z for z in data.get("zonas", []) if z.get("id") == zona or z.get("estado", "").lower() == zona.lower()]
+        if zonas:
+            data = {**data, "zonas": zonas, "zona_filtrada": zona}
+    return data
 
 
 @app.get("/")

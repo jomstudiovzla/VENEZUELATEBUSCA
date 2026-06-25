@@ -1,0 +1,310 @@
+{
+  "actualizado": "2026-06-25",
+  "fuentes": [
+    "https://eldiario.com/2026/06/24/recomendaciones-sismo/",
+    "https://eldiario.com/2026/06/25/llamadas-mensajes-gratuitos-venezuela/",
+    "https://digitel.com.ve/atencion-al-cliente/contactanos",
+    "https://desaparecidosterremotovenezuela.com/",
+    "https://terremotovenezuela.com/"
+  ],
+  "nacional": [
+    {
+      "nombre": "Emergencias unificadas",
+      "numero": "911",
+      "tipo": "llamada",
+      "notas": "Canal principal para bomberos, policía y ambulancias."
+    },
+    {
+      "nombre": "Funvisis — reporte de sismo",
+      "numero": "0-800-TEMBLOR",
+      "numero_marcar": "08008362567",
+      "tipo": "llamada",
+      "notas": "Línea gratuita. También cuestionario en funvisis.gob.ve"
+    },
+    {
+      "nombre": "Cruz Roja — búsqueda de familiares (desde Ecuador)",
+      "numero": "+593 98 595 6683",
+      "numero_marcar": "+593985956683",
+      "tipo": "llamada",
+      "notas": "Programa Restablecimiento del Contacto entre Familiares."
+    },
+    {
+      "nombre": "Cruz Roja — correo búsqueda familiar",
+      "numero": "busquedadefamiliares@cruzroja.org.ec",
+      "tipo": "email",
+      "notas": "Para reportar personas incomunicadas."
+    }
+  ],
+  "zonas": [
+    {
+      "id": "caracas",
+      "nombre": "Caracas / Municipio Libertador",
+      "estado": "Distrito Capital",
+      "prioridad": true,
+      "contactos": [
+        {
+          "nombre": "Bomberos de Caracas",
+          "numero": "0212-542-02-43",
+          "numero_marcar": "+582125420243",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Bomberos de Caracas (alterno)",
+          "numero": "0212-542-26-23",
+          "numero_marcar": "+582125422623",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Protección Civil",
+          "numero": "0212-575-18-23",
+          "numero_marcar": "+582125751823",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Protección Civil Libertador",
+          "numero": "0800-725-3661",
+          "numero_marcar": "08007253661",
+          "tipo": "llamada",
+          "notas": "Línea gratuita."
+        },
+        {
+          "nombre": "Protección Civil Libertador (Caracas)",
+          "numero": "0212-541-0830",
+          "numero_marcar": "+582125410830",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Policía de Caracas",
+          "numero": "0424-159-3304",
+          "numero_marcar": "+584241593304",
+          "tipo": "llamada"
+        }
+      ],
+      "refugios": [
+        "Complejo Cultural y Deportivo Guayana Esequiba — San Bernardino",
+        "Estadio Chato Candela — 23 de Enero",
+        "IND — El Paraíso",
+        "Ipostel — San Juan"
+      ]
+    },
+    {
+      "id": "la-guaira",
+      "nombre": "La Guaira / Vargas",
+      "estado": "La Guaira",
+      "prioridad": true,
+      "contactos": [
+        {
+          "nombre": "Emergencias",
+          "numero": "911",
+          "numero_marcar": "911",
+          "tipo": "llamada",
+          "notas": "Zona costera gravemente afectada — usar 911 ante colapsos."
+        },
+        {
+          "nombre": "Reportes de daños — terremotovenezuela.com",
+          "numero": "terremotovenezuela.com",
+          "numero_marcar": "https://terremotovenezuela.com/",
+          "tipo": "web",
+          "notas": "Mapa y reportes en Catia La Mar, Macuto y costa."
+        }
+      ],
+      "refugios": [
+        "Espacios abiertos y puntos de acopio habilitados por autoridades locales",
+        "Ver terremotovenezuela.com para reportes en Catia La Mar y costa"
+      ]
+    },
+    {
+      "id": "valencia",
+      "nombre": "Valencia / Carabobo",
+      "estado": "Carabobo",
+      "prioridad": true,
+      "contactos": [
+        {
+          "nombre": "Emergencias",
+          "numero": "911",
+          "numero_marcar": "911",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Bomberos Valencia",
+          "numero": "0241-823-71-71",
+          "numero_marcar": "+582418237171",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Protección Civil Carabobo",
+          "numero": "0241-621-30-01",
+          "numero_marcar": "+582416213001",
+          "tipo": "llamada"
+        }
+      ],
+      "refugios": [
+        "Centros de acopio habilitados por organizaciones civiles en Valencia y Morón"
+      ]
+    },
+    {
+      "id": "maracay",
+      "nombre": "Maracay / Aragua",
+      "estado": "Aragua",
+      "prioridad": true,
+      "contactos": [
+        {
+          "nombre": "Emergencias",
+          "numero": "911",
+          "numero_marcar": "911",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Bomberos Maracay",
+          "numero": "0243-245-20-11",
+          "numero_marcar": "+582432452011",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Protección Civil Aragua",
+          "numero": "0243-245-50-50",
+          "numero_marcar": "+582432455050",
+          "tipo": "llamada"
+        }
+      ],
+      "refugios": [
+        "Centros de acopio en Maracay y San Diego (ver redes oficiales locales)"
+      ]
+    },
+    {
+      "id": "nacional",
+      "nombre": "Todo Venezuela",
+      "estado": "Nacional",
+      "prioridad": false,
+      "contactos": [
+        {
+          "nombre": "Emergencias",
+          "numero": "911",
+          "numero_marcar": "911",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Funvisis",
+          "numero": "0-800-TEMBLOR",
+          "numero_marcar": "08008362567",
+          "tipo": "llamada"
+        }
+      ],
+      "refugios": []
+    }
+  ],
+  "operadoras": [
+    {
+      "id": "movistar",
+      "nombre": "Movistar",
+      "color": "#019DF4",
+      "beneficio_emergencia": "Llamadas y SMS gratuitos por 72 horas en todo el país (anunciado 25-jun-2026).",
+      "canales": [
+        {
+          "nombre": "Atención al cliente",
+          "numero": "*611",
+          "numero_marcar": "*611",
+          "tipo": "corto",
+          "notas": "Desde tu línea Movistar."
+        },
+        {
+          "nombre": "Autogestión",
+          "numero": "*811",
+          "numero_marcar": "*811",
+          "tipo": "corto"
+        },
+        {
+          "nombre": "WhatsApp oficial",
+          "numero": "0424-285-00-00",
+          "numero_marcar": "+584242850000",
+          "tipo": "whatsapp",
+          "notas": "Consultar canales oficiales @MovistarVe"
+        }
+      ],
+      "zonas_cobertura_gratuita": ["Todo Venezuela"]
+    },
+    {
+      "id": "digitel",
+      "nombre": "Digitel",
+      "color": "#E4002B",
+      "beneficio_emergencia": "Llamadas y SMS gratuitos 48 h en Caracas, La Guaira, Valencia, Maracay, Morón, San Diego, San Felipe y Barquisimeto.",
+      "canales": [
+        {
+          "nombre": "Atención al cliente",
+          "numero": "121",
+          "numero_marcar": "121",
+          "tipo": "corto",
+          "notas": "Desde tu línea Digitel."
+        },
+        {
+          "nombre": "Atención (cualquier teléfono)",
+          "numero": "0412-9121121",
+          "numero_marcar": "+584129121121",
+          "tipo": "llamada"
+        },
+        {
+          "nombre": "Clientes corporativos",
+          "numero": "131",
+          "numero_marcar": "131",
+          "tipo": "corto"
+        },
+        {
+          "nombre": "WhatsApp Diego (asistente)",
+          "numero": "0412-3444835",
+          "numero_marcar": "https://wa.me/584123444835",
+          "tipo": "whatsapp"
+        }
+      ],
+      "zonas_cobertura_gratuita": [
+        "Caracas",
+        "La Guaira",
+        "Valencia",
+        "Maracay",
+        "Morón",
+        "San Diego",
+        "San Felipe",
+        "Barquisimeto"
+      ]
+    },
+    {
+      "id": "movilnet",
+      "nombre": "Movilnet",
+      "color": "#F5A623",
+      "beneficio_emergencia": "Medidas especiales de conectividad activadas tras los sismos — consultar canales oficiales.",
+      "canales": [
+        {
+          "nombre": "Información y autogestión",
+          "numero": "*611",
+          "numero_marcar": "*611",
+          "tipo": "corto",
+          "notas": "Desde tu línea Movilnet."
+        },
+        {
+          "nombre": "Atención al cliente",
+          "numero": "0-800-MOVILNET",
+          "numero_marcar": "08006684563",
+          "tipo": "llamada",
+          "notas": "Línea gratuita nacional."
+        }
+      ],
+      "zonas_cobertura_gratuita": ["Consultar @MovilnetOficial"]
+    }
+  ],
+  "humanitario": [
+    {
+      "nombre": "Desaparecidos — registro y búsqueda",
+      "url": "https://desaparecidosterremotovenezuela.com/",
+      "tipo": "web"
+    },
+    {
+      "nombre": "Edificios dañados — mapa y reportes",
+      "url": "https://terremotovenezuela.com/",
+      "tipo": "web"
+    },
+    {
+      "nombre": "Venezuela te Busca (este visor)",
+      "url": "/",
+      "tipo": "web"
+    }
+  ]
+}
