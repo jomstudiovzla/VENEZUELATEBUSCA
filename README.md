@@ -42,7 +42,19 @@ Abrir en el navegador: **http://127.0.0.1:8000/**
 
 ## Ver en internet (servidor público)
 
-### Opción A — URL pública inmediata (túnel)
+### Opción A — Hosting automático 24/7 (recomendado)
+
+Un solo comando mantiene servidor + túnel público con auto-reinicio:
+
+```bash
+chmod +x instalar-daemon.sh daemon-publico.sh
+./instalar-daemon.sh
+```
+
+La URL queda en `PUBLIC_URL.txt` y en el visor (botón **Compartir ↗**).  
+También: `GET /api/public-url`
+
+### Opción B — Túnel manual (sesión actual)
 
 Con el servidor local corriendo (`./arrancar.sh`):
 
@@ -51,10 +63,9 @@ chmod +x exponer.sh
 ./exponer.sh
 ```
 
-Te dará una URL pública `https://xxxx.trycloudflare.com` para compartir al instante.  
-Los workers siguen actualizando en tiempo real desde tu Mac.
+Te dará una URL pública `https://xxxx.trycloudflare.com` para compartir al instante.
 
-### Opción B — Render.com (servidor 24/7 permanente)
+### Opción C — Render.com (servidor 24/7 permanente)
 
 1. Crea cuenta en [render.com](https://render.com)
 2. **New → Blueprint** → conecta el repo `VENEZUELATEBUSCA`
@@ -64,7 +75,7 @@ Los workers siguen actualizando en tiempo real desde tu Mac.
 
 Tu URL quedará: `https://venezuela-te-busca.onrender.com` (o similar)
 
-### Opción C — Docker (VPS, Railway, etc.)
+### Opción D — Docker (VPS, Railway, etc.)
 
 ```bash
 docker compose up -d --build
@@ -170,6 +181,7 @@ curl -X POST http://localhost:8000/api/cameras/reload
 | GET | `/api/emergencias` | Números de emergencia por zona |
 | GET | `/api/cameras` | Red de cámaras SAR |
 | GET | `/api/cameras/{id}/live.mjpg` | Stream MJPEG |
+| GET | `/api/public-url` | URL pública activa (túnel o `PUBLIC_BASE_URL`) |
 | GET | `/health` | Estado del sistema |
 
 Documentación interactiva: **http://127.0.0.1:8000/docs**

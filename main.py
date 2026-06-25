@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -63,6 +64,23 @@ logger = logging.getLogger("ojo_de_dios")
 
 SNAPSHOT_DIR = Path("snapshots")
 SNAPSHOT_DIR.mkdir(exist_ok=True)
+PUBLIC_URL_FILE = Path("PUBLIC_URL.txt")
+ROOT_DIR = Path(__file__).resolve().parent
+
+
+def resolve_public_url() -> Optional[str]:
+    env_url = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if env_url:
+        return env_url
+    for candidate in (PUBLIC_URL_FILE, ROOT_DIR / PUBLIC_URL_FILE):
+        try:
+            if candidate.is_file():
+                url = candidate.read_text(encoding="utf-8").strip().splitlines()[0].strip()
+                if url.startswith("http"):
+                    return url.rstrip("/")
+        except OSError:
+            continue
+    return None
 
 detector = None
 tattoo_analyzer = None
@@ -267,11 +285,23 @@ CAMERA_SNAPSHOT_DIR.mkdir(exist_ok=True)
 app.mount("/camera-snapshots", StaticFiles(directory=str(CAMERA_SNAPSHOT_DIR)), name="camera_snapshots")
 
 
+@app.get("/api/public-url")
+async def public_url():
+    url = resolve_public_url()
+    return {
+        "url": url,
+        "available": bool(url),
+        "source": "env" if os.environ.get("PUBLIC_BASE_URL") else ("file" if url else None),
+    }
+
+
 @app.get("/health")
 async def health():
+    public = resolve_public_url()
     return {
         "status": "operational",
         "service": "venezuela-te-busca-sar-dvi",
+        "public_url": public,
         "ws_subscribers": missing_updates_bus.subscriber_count,
         "status_ws_operators": status_updates_manager.active_count,
         "scraper_cycles": scraper.stats.cycles if scraper else 0,

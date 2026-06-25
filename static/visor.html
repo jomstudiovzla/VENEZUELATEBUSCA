@@ -124,6 +124,13 @@
     .pill.warn { color: var(--desaparecido); border-color: #6b5a20; }
     .pill.err { color: var(--fallecido); border-color: #6b2d2d; }
     .pill.pulse { animation: pulse-pill 0.6s ease; }
+    .pill.share {
+      cursor: pointer;
+      text-decoration: none;
+      color: #7ec8ff;
+      border-color: #2a4a6b;
+    }
+    .pill.share:hover { border-color: #4a8ac8; }
     @keyframes pulse-pill {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.04); box-shadow: 0 0 12px rgba(61,214,140,0.35); }
@@ -1313,6 +1320,7 @@
         <span id="db-pill" class="pill">BD local: …</span>
         <span id="fot-pill" class="pill">Fotos: …</span>
         <span id="em-pill" class="pill">Emergencias: …</span>
+        <a id="share-pill" class="pill share" href="#" hidden title="Copiar enlace público">Compartir ↗</a>
       </div>
     </div>
 
@@ -3368,10 +3376,31 @@
       if (e.target.id === "person-modal") closePersonModal();
     };
 
+    async function loadPublicUrl() {
+      try {
+        const res = await fetch(`${API}/api/public-url`);
+        const data = await res.json();
+        if (!data.url) return;
+        const pill = document.getElementById("share-pill");
+        pill.hidden = false;
+        pill.href = data.url;
+        pill.onclick = (e) => {
+          e.preventDefault();
+          const url = data.url;
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(url).then(() => showToast("Enlace público copiado"));
+          } else {
+            window.open(url, "_blank", "noopener");
+          }
+        };
+      } catch (_) {}
+    }
+
     bindMapControls();
     bindEmergencyControls();
     bindReportForms();
     loadEmergencias();
+    loadPublicUrl();
 
     loadDashboard();
     loadLiveStats();

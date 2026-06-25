@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=http://127.0.0.1:8000/" />
+
   <title>Venezuela te Busca — Abrir Visor</title>
   <style>
     body {
@@ -27,10 +27,30 @@
 <body>
   <div>
     <h1>Venezuela te Busca</h1>
-    <p>Redirigiendo al visor en tiempo real…</p>
-    <p><a href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
-    <p>Si no abre, arranca el servidor:<br><code>uvicorn main:app --host 0.0.0.0 --port 8000</code></p>
+    <p id="status">Buscando servidor…</p>
+    <p><a id="link-local" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a></p>
+    <p id="link-public-wrap" hidden>URL pública: <a id="link-public" href="#"></a></p>
+    <p>Si no abre: <code>./arrancar.sh</code> o <code>./instalar-daemon.sh</code></p>
   </div>
-  <script>window.location.href = "http://127.0.0.1:8000/";</script>
+  <script>
+    (async () => {
+      const local = "http://127.0.0.1:8000/";
+      const status = document.getElementById("status");
+      try {
+        const res = await fetch(local + "api/public-url", { signal: AbortSignal.timeout(2500) });
+        const data = await res.json();
+        if (data.url) {
+          document.getElementById("link-public").href = data.url;
+          document.getElementById("link-public").textContent = data.url;
+          document.getElementById("link-public-wrap").hidden = false;
+          status.textContent = "Redirigiendo a URL pública…";
+          window.location.href = data.url + "/";
+          return;
+        }
+      } catch (_) {}
+      status.textContent = "Redirigiendo al visor local…";
+      window.location.href = local;
+    })();
+  </script>
 </body>
 </html>
