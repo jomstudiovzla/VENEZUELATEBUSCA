@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Instalar — Red de Esperanza</title>
+  <style>
+    :root { --bg:#0a1628; --panel:#152a42; --hope:#4db8a4; --text:#eef4fa; --muted:#9bb4cc; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); padding:1.25rem; max-width:420px; margin:0 auto; }
+    h1 { color:var(--hope); font-size:1.2rem; margin-bottom:0.5rem; }
+    p { font-size:0.88rem; color:var(--muted); line-height:1.5; margin-bottom:0.75rem; }
+    .card { background:var(--panel); border-radius:14px; padding:1rem; margin:1rem 0; border:1px solid rgba(77,184,164,0.3); }
+    .url { word-break:break-all; font-size:1rem; color:var(--hope); font-weight:700; }
+    img.qr { display:block; margin:1rem auto; border-radius:12px; background:#fff; padding:8px; max-width:260px; width:100%; }
+    ol { padding-left:1.2rem; font-size:0.85rem; color:var(--muted); }
+    ol li { margin:0.4rem 0; }
+    a.btn { display:block; text-align:center; background:var(--hope); color:#0a1628; text-decoration:none; padding:0.9rem; border-radius:10px; font-weight:700; margin-top:1rem; }
+  </style>
+</head>
+<body>
+  <h1>📱 Abrir en iPhone / iPad</h1>
+  <p>Misma Wi‑Fi que esta Mac. Escanea el QR o abre el enlace en Safari.</p>
+  <div class="card">
+    <p>Enlace del prototipo</p>
+    <div class="url" id="app-url">…</div>
+    <img class="qr" id="qr" alt="QR" />
+  </div>
+  <div class="card">
+    <p><strong>iPhone / iPad</strong></p>
+    <ol>
+      <li>Abre el enlace en <strong>Safari</strong> (no Chrome).</li>
+      <li>Toca <strong>Compartir</strong> → <strong>Añadir a pantalla de inicio</strong>.</li>
+      <li>Entra con <strong>JOM</strong> / <strong>Studio</strong>.</li>
+      <li>Permite <strong>ubicación</strong> y <strong>Bluetooth</strong> si los pide.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <p><strong>Android</strong></p>
+    <ol>
+      <li>Abre el enlace en Chrome.</li>
+      <li>Menú ⋮ → <strong>Instalar aplicación</strong> o <strong>Añadir a inicio</strong>.</li>
+      <li>O instala el APK incluido en el zip (si está compilado).</li>
+    </ol>
+  </div>
+  <a class="btn" id="open-app" href="/mobile/">Abrir app móvil</a>
+  <script>
+    const url = `${location.protocol}//${location.host}/mobile/`;
+    document.getElementById("app-url").textContent = url;
+    document.getElementById("qr").src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
+    document.getElementById("open-app").href = url;
+  </script>
+</body>
+</html>

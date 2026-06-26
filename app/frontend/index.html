@@ -6,8 +6,9 @@
   <meta name="theme-color" content="#1a3a5c" />
   <meta name="description" content="Red de Esperanza — Rescate, Acopio y Refugios Venezuela 2026" />
   <link rel="manifest" href="/manifest.json" />
-  <title>Red de Esperanza — Tablero de Esperanza</title>
+  <title>RED DE ESPERANZA VENEZUELA — Centro de Comando Ciudadano</title>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/tricolor.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -126,60 +127,1098 @@
       border: none; border-radius: 50%; width: 52px; height: 52px;
       font-size: 1.4rem; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
+
+    .triage-wrap {
+      padding: 1rem 1.5rem 0;
+    }
+    .triage-panel {
+      background: linear-gradient(160deg, #1e4a6e 0%, #152a42 100%);
+      border: 2px solid var(--hope);
+      border-radius: 16px;
+      padding: 1.1rem 1.25rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    .triage-panel h2 {
+      font-family: Merriweather, serif;
+      font-size: 1.15rem;
+      color: var(--hope-bright);
+      margin-bottom: 0.25rem;
+    }
+    .triage-panel .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.85rem;
+    }
+    .triage-form {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+    .triage-input {
+      flex: 1;
+      min-width: 220px;
+      font-size: 1.35rem;
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 2px solid rgba(77,184,164,0.45);
+      background: rgba(15,31,51,0.85);
+      color: var(--text);
+      outline: none;
+    }
+    .triage-input:focus {
+      border-color: var(--hope-bright);
+      box-shadow: 0 0 0 3px rgba(110,231,209,0.2);
+    }
+    .triage-btn {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 0.85rem 1.6rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--hope);
+      color: #0f1f33;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .triage-btn:disabled { opacity: 0.55; cursor: wait; }
+    .triage-status {
+      margin-top: 0.55rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      min-height: 1.1rem;
+    }
+    .triage-results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.85rem;
+      margin-top: 1rem;
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+    .med-card {
+      background: var(--panel2);
+      border-radius: 12px;
+      border: 1px solid rgba(77,184,164,0.25);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 0.3s ease;
+    }
+    .med-card.localizado { border-color: rgba(62,207,142,0.5); }
+    .med-card.fallecido { border-color: rgba(232,93,93,0.5); opacity: 0.9; }
+    .med-card-head {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.85rem;
+      align-items: flex-start;
+    }
+    .med-photo {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: rgba(0,0,0,0.25);
+      flex-shrink: 0;
+    }
+    .med-photo.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      color: var(--muted);
+    }
+    .med-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--hope-bright);
+      line-height: 1.25;
+    }
+    .med-badge {
+      display: inline-block;
+      margin-top: 0.35rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 99px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .med-badge.desaparecido { background: rgba(232,184,77,0.25); color: var(--warn); }
+    .med-badge.localizado { background: rgba(62,207,142,0.25); color: var(--ok); }
+    .med-badge.fallecido { background: rgba(232,93,93,0.25); color: var(--urgent); }
+    .med-body {
+      padding: 0 0.85rem 0.85rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .med-body strong { color: var(--text); }
+    .med-actions {
+      padding: 0.65rem 0.85rem 0.85rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .med-btn-localizar {
+      width: 100%;
+      padding: 0.65rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--ok);
+      color: #0f1f33;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .med-btn-localizar:disabled {
+      background: rgba(62,207,142,0.35);
+      color: var(--muted);
+      cursor: default;
+    }
+    .med-actions-row {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .med-btn-fallecido {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.65rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--urgent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .med-btn-fallecido:disabled { opacity: 0.45; cursor: default; }
+    .med-btn-fallecido { position: relative; overflow: hidden; }
+    .triage-toolbar {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .triage-select {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(77,184,164,0.35);
+      background: rgba(15,31,51,0.85);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .triage-check {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .triage-metrics {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+    }
+    .triage-metrics strong { color: var(--hope-bright); }
+    .sync-pill {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 99px;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+    .sync-pill.on { background: rgba(62,207,142,0.2); color: var(--ok); }
+    .sync-pill.off { background: rgba(232,184,77,0.2); color: var(--warn); }
+    .forensic-lock {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 0.65rem;
+      background: rgba(107,114,128,0.2);
+      border: 1px solid rgba(232,93,93,0.35);
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-bottom: 0.45rem;
+    }
+    .forensic-lock.show { display: flex; }
+    .med-card.locked .med-btn-localizar,
+    .med-card.locked .med-btn-fallecido {
+      background: #6b7280 !important;
+      color: #d1d5db !important;
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .btn-forense-card {
+      width: 100%;
+      padding: 0.55rem;
+      border: none;
+      border-radius: 8px;
+      background: #7c3aed;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: none;
+    }
+    .btn-forense-card.visible { display: block; }
+    .med-link-detail {
+      font-size: 0.72rem;
+      color: var(--hope-bright);
+      margin-top: 0.35rem;
+      display: inline-block;
+    }
+    .hospital-chips {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.65rem;
+    }
+    .hospital-chip {
+      padding: 0.55rem 0.85rem;
+      border-radius: 99px;
+      border: 2px solid rgba(77,184,164,0.35);
+      background: rgba(15,31,51,0.7);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .hospital-chip.active {
+      border-color: var(--hope-bright);
+      background: rgba(77,184,164,0.25);
+      color: var(--hope-bright);
+    }
+    .hospital-chip.missing { border-color: var(--urgent); animation: pulseHosp 1.2s infinite; }
+    @keyframes pulseHosp { 50% { box-shadow: 0 0 0 4px rgba(232,93,93,0.25); } }
+    .recent-row {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.55rem;
+      min-height: 1.4rem;
+    }
+    .recent-chip {
+      padding: 0.25rem 0.55rem;
+      border-radius: 99px;
+      background: rgba(77,184,164,0.15);
+      border: 1px solid rgba(77,184,164,0.3);
+      color: var(--hope-bright);
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+    .triage-clear {
+      padding: 0.85rem 1rem;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .hero-card {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, rgba(62,207,142,0.12), rgba(26,58,92,0.9));
+      border: 2px solid var(--ok);
+      border-radius: 14px;
+      padding: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .hero-card .med-name { font-size: 1.25rem; }
+    .hero-actions { display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+    .btn-hero-ingresar {
+      min-width: 160px;
+      padding: 1rem 1.5rem;
+      font-size: 1.15rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 12px;
+      background: var(--ok);
+      color: #0f1f33;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(62,207,142,0.35);
+    }
+    .btn-hero-fallecido {
+      padding: 1rem 1.2rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      background: var(--urgent);
+      color: #fff;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-hero-fallecido .hold-bar {
+      position: absolute;
+      left: 0; bottom: 0; height: 4px;
+      background: rgba(255,255,255,0.8);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    .toast-wrap {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      animation: toastIn 0.25s ease;
+      pointer-events: auto;
+      max-width: 320px;
+    }
+    .toast.ok { background: var(--ok); color: #0f1f33; }
+    .toast.err { background: var(--urgent); color: #fff; }
+    .toast.info { background: var(--panel2); color: var(--text); border: 1px solid var(--hope); }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(12px); } }
+    .quick-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      background: rgba(0,0,0,0.75);
+      align-items: flex-end;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .quick-modal.show { display: flex; }
+    .quick-sheet {
+      width: 100%;
+      max-width: 520px;
+      background: var(--panel);
+      border-radius: 20px 20px 14px 14px;
+      padding: 1.25rem;
+      border: 2px solid var(--hope);
+      animation: sheetUp 0.25s ease;
+    }
+    @keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } }
+    .quick-sheet h3 { color: var(--hope-bright); font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .quick-sheet .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+    .metrics-toggle {
+      font-size: 0.72rem;
+      color: var(--muted);
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+      user-select: none;
+    }
+    .triage-metrics.collapsed { display: none; }
+    .scan-hint {
+      font-size: 0.7rem;
+      color: var(--hope);
+      margin-top: 0.35rem;
+    }
+    .report-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9100;
+      background: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .report-modal.show { display: flex; }
+    .report-sheet {
+      width: 100%;
+      max-width: 540px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 1.25rem;
+      border: 2px solid var(--hope);
+    }
+    .report-sheet h3 { color: var(--hope-bright); font-size: 1.15rem; margin-bottom: 0.35rem; }
+    .report-sheet .sub { color: var(--muted); font-size: 0.82rem; margin-bottom: 1rem; }
+    .report-field { margin-bottom: 0.85rem; }
+    .report-field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .report-field select,
+    .report-field input,
+    .report-field textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(77,184,164,0.35);
+      background: rgba(15,31,51,0.85);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .report-field textarea { min-height: 88px; resize: vertical; }
+    .report-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .btn-report-submit {
+      flex: 2;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--ok);
+      color: #0f1f33;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .btn-report-cancel {
+      padding: 0.85rem 1rem;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .intake-info {
+      margin-top: 0.45rem;
+      padding: 0.5rem 0.6rem;
+      background: rgba(62,207,142,0.1);
+      border-radius: 6px;
+      font-size: 0.74rem;
+      line-height: 1.4;
+    }
+    .intake-info strong { color: var(--ok); }
+    #acopio-map {
+      height: 220px;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .acopio-filters {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .acopio-filter {
+      padding: 0.35rem 0.65rem;
+      border-radius: 99px;
+      border: 1px solid rgba(77,184,164,0.35);
+      background: rgba(15,31,51,0.7);
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .acopio-filter.active {
+      border-color: var(--hope-bright);
+      background: rgba(77,184,164,0.2);
+      color: var(--hope-bright);
+    }
+    .acopio-card {
+      background: var(--panel2);
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-bottom: 0.65rem;
+      border-left: 3px solid var(--warn);
+      font-size: 0.8rem;
+    }
+    .acopio-card.red { border-left-color: var(--urgent); }
+    .acopio-card.green { border-left-color: var(--ok); }
+    .acopio-card.yellow { border-left-color: var(--warn); }
+    .acopio-card-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: flex-start; }
+    .acopio-card h3 { font-size: 0.9rem; color: var(--hope-bright); margin-bottom: 0.2rem; }
+    .acopio-meta { font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
+    .service-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.5rem 0; }
+    .service-tag {
+      padding: 0.15rem 0.45rem;
+      border-radius: 99px;
+      background: rgba(77,184,164,0.15);
+      color: var(--hope-bright);
+      font-size: 0.68rem;
+    }
+    .acopio-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .btn-maps {
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      border: none;
+      background: var(--hope);
+      color: #0f1f33;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-maps.secondary {
+      background: rgba(255,255,255,0.1);
+      color: var(--hope-bright);
+    }
+    .need-tag { color: var(--urgent); }
+    .surplus-tag { color: var(--ok); }
+    .section.acopio-section { min-height: 520px; }
+    .acopio-toolbar {
+      display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+      margin-bottom: 0.65rem;
+    }
+    .btn-acopio {
+      padding: 0.45rem 0.75rem; border: none; border-radius: 8px;
+      background: var(--hope); color: #0f1f33; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+    }
+    .btn-acopio.secondary { background: rgba(255,255,255,0.1); color: var(--hope-bright); }
+    .verify-badge {
+      display: inline-block; padding: 0.12rem 0.45rem; border-radius: 99px;
+      font-size: 0.65rem; font-weight: 700; margin-top: 0.25rem;
+    }
+    .verify-badge.official { background: rgba(62,207,142,0.25); color: var(--ok); }
+    .verify-badge.community { background: rgba(77,184,164,0.2); color: var(--hope-bright); }
+    .acopio-live {
+      font-size: 0.7rem; color: var(--ok); display: flex; align-items: center; gap: 0.3rem;
+    }
+    .acopio-live .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+      animation: pulseLive 1.5s infinite;
+    }
+    @keyframes pulseLive { 50% { opacity: 0.35; } }
+    .pending-panel {
+      display: none; background: rgba(232,184,77,0.12); border: 1px solid rgba(232,184,77,0.35);
+      border-radius: 10px; padding: 0.75rem; margin-bottom: 0.75rem;
+    }
+    .pending-panel.show { display: block; }
+    .pending-panel h4 { font-size: 0.82rem; color: var(--warn); margin-bottom: 0.5rem; }
+    .pending-card {
+      background: var(--panel2); border-radius: 8px; padding: 0.65rem; margin-bottom: 0.5rem; font-size: 0.78rem;
+    }
+    .pending-card .meta { color: var(--muted); font-size: 0.72rem; margin: 0.25rem 0; }
+    .pending-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.45rem; }
+    .btn-verify { padding: 0.35rem 0.6rem; border: none; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+    .btn-verify.ok { background: var(--ok); color: #0f1f33; }
+    .btn-verify.no { background: var(--urgent); color: #fff; }
+    .service-checks { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .service-check {
+      display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;
+      padding: 0.25rem 0.45rem; border-radius: 6px; background: rgba(15,31,51,0.6);
+      border: 1px solid rgba(77,184,164,0.25); cursor: pointer;
+    }
+    .service-check input { accent-color: var(--hope); }
+    .acopio-trust {
+      font-size: 0.72rem; color: var(--muted); margin-bottom: 0.55rem; line-height: 1.4;
+    }
   </style>
 </head>
-<body>
+<body class="tricolor">
+  <div id="loading-banner" class="loading-banner show">🇻🇪 Fuerza Venezuela — Cargando Centro de Comando… Juntos Salvaremos Vidas</div>
   <div id="offline-bar" class="offline-bar">Sin conexión — los registros se encolarán y sincronizarán automáticamente</div>
+  <div class="toast-wrap" id="toast-wrap"></div>
+  <div class="quick-modal" id="quick-modal" onclick="if(event.target===this)closeQuickModal()">
+    <div class="quick-sheet" id="quick-sheet"></div>
+  </div>
+  <div class="report-modal" id="report-modal" onclick="if(event.target===this)closeReportModal()">
+    <div class="report-sheet" id="report-sheet"></div>
+  </div>
+  <div class="report-modal" id="acopio-modal" onclick="if(event.target===this)closeAcopioModal()">
+    <div class="report-sheet" id="acopio-sheet"></div>
+  </div>
 
-  <header>
+  <nav class="bandera-nav" aria-label="Bandera de Venezuela">
+    <div class="bandera-stripe amarillo"></div>
+    <div class="bandera-stripe azul"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+    <div class="bandera-stripe rojo"></div>
+  </nav>
+  <header class="command-header">
     <div>
-      <h1>Red de Esperanza</h1>
-      <div class="sub">Tablero de Esperanza · Rescate, Acopio y Refugios · Venezuela 2026</div>
-      <div class="emergencias" id="emergencias">Emergencias: cargando…</div>
+      <h1>RED DE ESPERANZA VENEZUELA</h1>
+      <div class="motto">Centro de Comando Ciudadano · Terremoto Junio 2026</div>
+      <div class="motto resilience">Fuerza Venezuela · Juntos Salvaremos Vidas</div>
+      <div class="emergencias" id="emergencias" style="margin-top:0.35rem;font-size:0.72rem;opacity:0.9">Emergencias: cargando…</div>
     </div>
-    <div class="stats" id="stats">Cargando…</div>
+    <div class="header-stats" id="stats">Cargando…</div>
     <span id="ws-pill" class="ws off">WS desconectado</span>
   </header>
 
-  <div class="grid">
-    <!-- 1. Mapa y Misiones -->
-    <section class="section">
-      <div class="section-head">
-        <h2>🗺️ Mapa y Misiones</h2>
-        <p>Emergencias activas y voluntarios en camino</p>
-      </div>
-      <div class="section-body">
-        <div id="mission-map"></div>
-        <div id="missions-list"></div>
-      </div>
-    </section>
-
-    <!-- 2. Semáforo de Acopio -->
-    <section class="section">
-      <div class="section-head">
-        <h2>🚦 Semáforo de Acopio</h2>
-        <p>Estado de suministros por refugio</p>
-      </div>
-      <div class="section-body" id="acopio-grid"></div>
-    </section>
-
-    <!-- 3. Muro de Encuentros -->
-    <section class="section">
-      <div class="section-head">
-        <h2>💚 Muro de Encuentros</h2>
-        <p>Rescatados y posibles reencuentros familiares</p>
-      </div>
-      <div class="section-body" id="encuentros-feed"></div>
+  <div class="command-layout">
+    <aside class="command-sidebar">
+  <div class="triage-wrap" style="padding:0">
+    <section class="triage-panel tricolor-panel" aria-label="Triaje de Hospitales">
+      <h2>🏥 Reportar Encontrados</h2>
+      <p class="hint">Busca por cédula o nombre · Reporta hospital, estado y descripción · Mantén 2s para fallecido</p>
+      <div class="metrics-toggle" id="metrics-toggle">▸ Ver estadísticas</div>
+      <div class="triage-metrics collapsed" id="triage-metrics"></div>
+      <div class="hospital-chips" id="hospital-chips"></div>
+      <select class="triage-select" id="triage-hospital" aria-hidden="true" style="display:none">
+        <option value=""></option>
+      </select>
+      <div class="recent-row" id="recent-searches"></div>
+      <form class="triage-form" id="triage-form" autocomplete="off">
+        <input
+          class="triage-input"
+          id="triage-query"
+          type="search"
+          name="q"
+          placeholder="Cédula o nombre — escribe y listo"
+          enterkeyhint="search"
+          autocapitalize="off"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="triage-clear" type="button" id="triage-clear" title="Limpiar">✕</button>
+      </form>
+      <div class="scan-hint" id="scan-hint">⌨️ Enter = buscar · 1 = reportar primer resultado · Esc = limpiar</div>
+      <div class="triage-status" id="triage-status"></div>
+      <div class="triage-results" id="triage-results"></div>
     </section>
   </div>
+
+  <div class="victims-feed">
+    <h3>💛 Personas en tiempo real</h3>
+    <div id="victims-sidebar-hint" style="font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem">Busca arriba para ver desaparecidos y localizados</div>
+  </div>
+
+  <div class="secondary-panels">
+    <div class="panel-tabs">
+      <button type="button" class="panel-tab active" data-panel="encuentros" onclick="switchPanel('encuentros')">Encuentros</button>
+      <button type="button" class="panel-tab" data-panel="acopio" onclick="switchPanel('acopio')">Acopio</button>
+      <button type="button" class="panel-tab" data-panel="misiones" onclick="switchPanel('misiones')">Misiones</button>
+    </div>
+    <div id="panel-encuentros" class="panel-body">
+      <div id="encuentros-feed" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+    <div id="panel-acopio" class="panel-body" style="display:none">
+      <div class="acopio-toolbar" style="margin-bottom:0.5rem">
+        <button type="button" class="btn-acopio" onclick="openAcopioModal()">+ Centro acopio</button>
+        <button type="button" class="btn-acopio secondary" id="btn-verifier-mode" onclick="toggleVerifierMode()">Verificador</button>
+      </div>
+      <div id="acopio-grid" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div id="panel-misiones" class="panel-body" style="display:none">
+      <div id="mission-map" style="height:140px;border-radius:8px;margin-bottom:0.5rem"></div>
+      <div id="missions-list"></div>
+    </div>
+  </div>
+    </aside>
+
+    <section class="command-map-panel">
+      <div class="map-toolbar">
+        <button type="button" id="btn-center-venezuela">🇻🇪 Venezuela</button>
+        <button type="button" class="gps" id="btn-report-building">📍 Reportar edificio (GPS)</button>
+        <button type="button" class="accent" onclick="location.href='/mobile/'">📱 App móvil</button>
+        <button type="button" onclick="location.href='/mobile/install.html'">📲 Instalar en teléfono</button>
+      </div>
+      <div id="google-command-map" role="application" aria-label="Mapa de edificaciones"></div>
+    </section>
+  </div>
+
+  <a class="mobile-entry" href="/mobile/">📱 Móvil</a>
+
+  <div id="pending-panel" class="pending-panel" style="display:none"><div id="pending-list"></div></div>
+  <div id="acopio-map" style="display:none"></div>
+  <div id="acopio-filters" style="display:none"></div>
+  <span id="pending-badge" style="display:none"></span>
 
   <button class="fab" title="Registrar sobreviviente" onclick="openSurvivorForm()">+</button>
 
   <script src="/static/sw-register.js"></script>
+  <script src="/static/js/command-center.js"></script>
   <script>
     const API = "";
-    let map, missionLayer, shelterLayer;
+    function switchPanel(name) {
+      document.querySelectorAll(".panel-tab").forEach(t => t.classList.toggle("active", t.dataset.panel === name));
+      ["encuentros", "acopio", "misiones"].forEach(p => {
+        const el = document.getElementById("panel-" + p);
+        if (el) el.style.display = p === name ? "block" : "none";
+      });
+      if (name === "misiones" && map) setTimeout(() => map.invalidateSize(), 200);
+    }
+    function showMatchBanner(msg) {
+      showToast(msg, "ok");
+      const b = document.getElementById("loading-banner");
+      if (b) { b.textContent = "🇻🇪 " + msg; b.classList.add("show"); setTimeout(() => b.classList.remove("show"), 4000); }
+    }
+    window.showMatchBanner = showMatchBanner;
+    let map, missionLayer, acopioMap, acopioLayer;
     let ws;
+    let triageDebounce = null;
+    let triageHospitals = [];
+    let lastTriageResults = [];
+    let acopioCenters = [];
+    let acopioStateFilter = "";
+    let acopioServiceOptions = [];
+    let acopioPendingCount = 0;
+    let pendingReport = null;
+    const FORENSIC_ROLE = "ADMIN_FORENSE";
+    const VERIFIER_ROLE = "VERIFICADOR_ACOPIO";
+    const VERIFIER_KEY = "acopio_verifier_role";
+    const VERIFIER_NAME_KEY = "acopio_verifier_name";
+    const HOSPITAL_KEY = "triage_hospital_id";
+    const RECENT_KEY = "triage_recent_searches";
+    const ESTADOS_ENCONTRADO = [
+      { value: "estable", label: "Estable — puede caminar" },
+      { value: "herido_leve", label: "Herido leve" },
+      { value: "herido_grave", label: "Herido grave" },
+      { value: "critico", label: "Crítico — requiere urgencia" },
+      { value: "inconsciente", label: "Inconsciente" },
+      { value: "quemaduras", label: "Quemaduras" },
+      { value: "trauma", label: "Trauma / fracturas" },
+      { value: "desorientado", label: "Desorientado / confuso" },
+    ];
+    const ESTADO_LABELS = Object.fromEntries(ESTADOS_ENCONTRADO.map(e => [e.value, e.label.split(" —")[0]]));
+    const SERVICE_LABELS = {
+      alimentos: "Alimentos", agua: "Agua", ropa: "Ropa", medicinas: "Medicinas",
+      higiene: "Higiene", cobijas: "Cobijas", logística: "Logística", transporte: "Transporte",
+      voluntariado: "Voluntariado", herramientas: "Herramientas", abrigos: "Abrigos",
+      "transporte fluvial": "Transporte fluvial", "refugio temporal": "Refugio temporal",
+      pañales: "Pañales", alojamiento: "Alojamiento", registro: "Registro",
+      urgencias: "Urgencias", cirugía: "Cirugía", trauma: "Trauma", laboratorio: "Laboratorio",
+      "rayos X": "Rayos X",
+    };
+
+    function getForensicRole() { return localStorage.getItem("forensic_role") || ""; }
+    function isForensicAdmin() { return getForensicRole() === FORENSIC_ROLE; }
+    function forensicHeaders() {
+      const h = { "Content-Type": "application/json" };
+      const role = getForensicRole();
+      if (role) h["X-Forensic-Role"] = role;
+      return h;
+    }
+
+    function isAcopioVerifier() {
+      return localStorage.getItem(VERIFIER_KEY) === VERIFIER_ROLE;
+    }
+
+    function verifierHeaders() {
+      const h = { "Content-Type": "application/json" };
+      if (isAcopioVerifier()) h["X-Acopio-Verifier"] = VERIFIER_ROLE;
+      return h;
+    }
+
+    function toggleVerifierMode() {
+      if (isAcopioVerifier()) {
+        localStorage.removeItem(VERIFIER_KEY);
+        localStorage.removeItem(VERIFIER_NAME_KEY);
+        showToast("Modo verificador desactivado", "info");
+      } else {
+        const code = prompt("Código de verificador (VERIFICADOR_ACOPIO):");
+        if (code?.trim().toUpperCase() !== VERIFIER_ROLE) {
+          showToast("Código incorrecto", "err");
+          return;
+        }
+        const name = prompt("Tu nombre como verificador:") || "Verificador";
+        localStorage.setItem(VERIFIER_KEY, VERIFIER_ROLE);
+        localStorage.setItem(VERIFIER_NAME_KEY, name);
+        showToast(`Modo verificador: ${name}`, "ok");
+      }
+      updateVerifierUI();
+      loadPendingAcopio();
+    }
+
+    function updateVerifierUI() {
+      const btn = $("btn-verifier-mode");
+      if (btn) {
+        btn.textContent = isAcopioVerifier()
+          ? `✓ ${localStorage.getItem(VERIFIER_NAME_KEY) || "Verificador"}`
+          : "Modo verificador";
+        btn.style.borderColor = isAcopioVerifier() ? "var(--ok)" : "";
+      }
+      $("pending-panel").classList.toggle("show", isAcopioVerifier());
+    }
+
+    function closeAcopioModal() {
+      $("acopio-modal").classList.remove("show");
+    }
+
+    function openAcopioModal() {
+      const services = acopioServiceOptions.length ? acopioServiceOptions : [
+        "alimentos","agua","ropa","medicinas","higiene","cobijas","logística","transporte","voluntariado"
+      ];
+      const checks = services.map(s =>
+        `<label class="service-check"><input type="checkbox" name="svc" value="${s}" /> ${SERVICE_LABELS[s] || s}</label>`
+      ).join("");
+      $("acopio-sheet").innerHTML = `
+        <h3>Registrar centro de acopio</h3>
+        <p class="sub">Quedará pendiente hasta verificación. Datos falsos serán rechazados.</p>
+        <div class="report-field"><label>Nombre del centro *</label><input id="ac-name" placeholder="Ej: Acopio Comunitario San José" /></div>
+        <div class="report-field"><label>Estado *</label><input id="ac-state" placeholder="Ej: Carabobo" /></div>
+        <div class="report-field"><label>Ciudad *</label><input id="ac-city" placeholder="Ej: Valencia" /></div>
+        <div class="report-field"><label>Dirección exacta *</label><input id="ac-address" placeholder="Av. con referencia visible" /></div>
+        <div class="report-field"><label>Teléfono del centro *</label><input id="ac-phone" type="tel" placeholder="0414-0000000" /></div>
+        <div class="report-field"><label>¿Qué ayuda ofrecen? *</label><div class="service-checks">${checks}</div></div>
+        <div class="report-field"><label>Descripción del punto *</label>
+          <textarea id="ac-desc" placeholder="Horario, acceso, quién coordina, qué pueden recibir o entregar…"></textarea></div>
+        <div class="report-field"><label>Tu nombre *</label><input id="ac-sub-name" placeholder="Responsable del registro" /></div>
+        <div class="report-field"><label>Tu teléfono *</label><input id="ac-sub-phone" type="tel" placeholder="Para que el verificador contacte" /></div>
+        <div class="report-field"><label>Organización (opcional)</label><input id="ac-sub-org" placeholder="Iglesia, ONG, alcaldía…" /></div>
+        <div class="report-field">
+          <label>Ubicación GPS</label>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+            <input id="ac-lat" type="number" step="any" placeholder="Latitud" style="flex:1;min-width:120px" />
+            <input id="ac-lng" type="number" step="any" placeholder="Longitud" style="flex:1;min-width:120px" />
+            <button type="button" class="btn-acopio secondary" onclick="useMyLocation()">📍 Mi ubicación</button>
+          </div>
+        </div>
+        <div class="report-actions">
+          <button class="btn-report-cancel" type="button" onclick="closeAcopioModal()">Cancelar</button>
+          <button class="btn-report-submit" type="button" onclick="submitAcopioCenter()">Enviar a verificación</button>
+        </div>`;
+      $("acopio-modal").classList.add("show");
+    }
+
+    function useMyLocation() {
+      if (!navigator.geolocation) { showToast("GPS no disponible", "err"); return; }
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          $("ac-lat").value = pos.coords.latitude.toFixed(6);
+          $("ac-lng").value = pos.coords.longitude.toFixed(6);
+          showToast("Ubicación capturada", "ok");
+        },
+        () => showToast("No se pudo obtener GPS", "err"),
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    }
+
+    async function submitAcopioCenter() {
+      const services = [...document.querySelectorAll('input[name="svc"]:checked')].map(el => el.value);
+      const payload = {
+        name: $("ac-name").value.trim(),
+        state: $("ac-state").value.trim(),
+        city: $("ac-city").value.trim(),
+        address: $("ac-address").value.trim(),
+        contact_phone: $("ac-phone").value.trim(),
+        description: $("ac-desc").value.trim(),
+        services_offered: services,
+        submitted_by_name: $("ac-sub-name").value.trim(),
+        submitted_by_contact: $("ac-sub-phone").value.trim(),
+        submitted_by_org: $("ac-sub-org").value.trim() || null,
+        lat: parseFloat($("ac-lat").value),
+        lng: parseFloat($("ac-lng").value),
+      };
+      if (!payload.name || !payload.state || !payload.city || !payload.address || !payload.contact_phone
+          || !payload.description || services.length < 1 || !payload.submitted_by_name
+          || !payload.submitted_by_contact || isNaN(payload.lat) || isNaN(payload.lng)) {
+        showToast("Completa todos los campos obligatorios y GPS", "err");
+        return;
+      }
+      const btn = document.querySelector("#acopio-sheet .btn-report-submit");
+      if (btn) { btn.disabled = true; btn.textContent = "Enviando…"; }
+      try {
+        const r = await fetch(`${API}/api/acopio/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Error al registrar");
+        closeAcopioModal();
+        showToast("✓ Enviado — pendiente de verificación", "ok");
+        addEncuentro({
+          title: `📦 Nuevo acopio pendiente: ${payload.name}`,
+          body: `${payload.city}, ${payload.state} — esperando verificador`,
+        });
+        acopioPendingCount += 1;
+        updatePendingBadge();
+        if (isAcopioVerifier()) loadPendingAcopio();
+      } catch (e) {
+        showToast(e.message, "err");
+        if (btn) { btn.disabled = false; btn.textContent = "Enviar a verificación"; }
+      }
+    }
+
+    async function loadPendingAcopio() {
+      if (!isAcopioVerifier()) return;
+      try {
+        const r = await fetch(`${API}/api/acopio/pending`, { headers: verifierHeaders() });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || "Sin acceso");
+        const list = $("pending-list");
+        if (!data.items?.length) {
+          list.innerHTML = "<p style='color:var(--muted);font-size:0.75rem'>Sin pendientes</p>";
+          return;
+        }
+        list.innerHTML = data.items.map(c => `
+          <div class="pending-card" data-pid="${c.id}">
+            <strong>${c.name}</strong>
+            <div class="meta">${c.city}, ${c.state} · ${c.address}</div>
+            <div class="meta">📞 ${c.contact_phone} · Por: ${c.submitted_by_name} (${c.submitted_by_contact})</div>
+            <div class="meta">${c.description?.slice(0, 120) || ""}</div>
+            <div class="pending-actions">
+              <button class="btn-verify ok" onclick="moderateAcopio('${c.id}','verificar')">✓ Verificar</button>
+              <button class="btn-verify no" onclick="moderateAcopio('${c.id}','rechazar')">✕ Rechazar</button>
+              <a class="btn-maps secondary" href="${c.maps_url}" target="_blank" rel="noopener">📍 Maps</a>
+            </div>
+          </div>`).join("");
+      } catch (e) {
+        $("pending-list").innerHTML = `<p style='color:var(--urgent);font-size:0.75rem'>${e.message}</p>`;
+      }
+    }
+
+    async function moderateAcopio(id, action) {
+      if (!isAcopioVerifier()) return;
+      let body = { action, verifier_name: localStorage.getItem(VERIFIER_NAME_KEY) || "Verificador" };
+      if (action === "rechazar") {
+        const reason = prompt("Motivo del rechazo (obligatorio):");
+        if (!reason?.trim()) return;
+        body.rejection_reason = reason.trim();
+      } else {
+        const notes = prompt("Notas de verificación (opcional):") || "";
+        body.verification_notes = notes;
+      }
+      try {
+        const r = await fetch(`${API}/api/acopio/${id}/verification`, {
+          method: "PATCH",
+          headers: verifierHeaders(),
+          body: JSON.stringify(body),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Error");
+        showToast(action === "verificar" ? "✓ Centro verificado" : "Centro rechazado", action === "verificar" ? "ok" : "info");
+        loadPendingAcopio();
+        loadAcopio();
+      } catch (e) { showToast(e.message, "err"); }
+    }
+
+    function updatePendingBadge() {
+      const el = $("pending-badge");
+      if (!el) return;
+      if (acopioPendingCount > 0 && isAcopioVerifier()) {
+        el.textContent = `⏳ ${acopioPendingCount} pendiente${acopioPendingCount === 1 ? "" : "s"}`;
+      } else if (acopioPendingCount > 0) {
+        el.textContent = `${acopioPendingCount} en revisión`;
+      } else {
+        el.textContent = "";
+      }
+    }
+
+    function verifyBadge(c) {
+      if (c.is_official) return `<span class="verify-badge official">✓ Oficial verificado</span>`;
+      return `<span class="verify-badge community">✓ Verificado</span>`;
+    }
+
+    function showToast(msg, type = "info") {
+      const wrap = $("toast-wrap");
+      const el = document.createElement("div");
+      el.className = `toast ${type}`;
+      el.textContent = msg;
+      wrap.appendChild(el);
+      setTimeout(() => el.remove(), type === "err" ? 4500 : 2800);
+      if (type === "ok" && navigator.vibrate) navigator.vibrate(80);
+    }
+
+    function saveRecentSearch(q) {
+      if (!q || q.length < 2) return;
+      let recent = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+      recent = [q, ...recent.filter(x => x !== q)].slice(0, 6);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+      renderRecentSearches();
+    }
+
+    function renderRecentSearches() {
+      const recent = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+      const el = $("recent-searches");
+      if (!recent.length) { el.innerHTML = ""; return; }
+      el.innerHTML = recent.map(q =>
+        `<button type="button" class="recent-chip" onclick="quickSearch('${q.replace(/'/g, "\\'")}')">${q}</button>`
+      ).join("");
+    }
+
+    function quickSearch(q) {
+      $("triage-query").value = q;
+      runTriageSearch(q);
+    }
+
+    function clearTriageSearch() {
+      $("triage-query").value = "";
+      $("triage-results").innerHTML = "";
+      $("triage-status").textContent = "";
+      lastTriageResults = [];
+      closeQuickModal();
+      $("triage-query").focus();
+    }
+
+    function setHospital(id) {
+      $("triage-hospital").value = id || "";
+      localStorage.setItem(HOSPITAL_KEY, id || "");
+      document.querySelectorAll(".hospital-chip").forEach(chip => {
+        chip.classList.toggle("active", chip.dataset.id === id);
+        chip.classList.toggle("missing", !id);
+      });
+    }
+
+    function getTriageHospitalId() {
+      const id = $("triage-hospital").value || localStorage.getItem(HOSPITAL_KEY);
+      if (!id) {
+        showToast("Toca tu hospital arriba antes de ingresar", "err");
+        document.querySelectorAll(".hospital-chip").forEach(c => c.classList.add("missing"));
+        return null;
+      }
+      return id;
+    }
+
+    function closeQuickModal() {
+      $("quick-modal").classList.remove("show");
+    }
+
+    function openQuickModal(victim) {
+      if (!victim || victim.is_locked) return;
+      const cls = estadoClass(victim.estado_raw);
+      if (cls === "localizado" || cls === "fallecido") return;
+      const sheet = $("quick-sheet");
+      sheet.innerHTML = `
+        <h3>${victim.nombre_completo}</h3>
+        <div class="meta">
+          ${victim.cedula ? `Cédula ${victim.cedula} · ` : ""}
+          ${victim.edad != null ? `${victim.edad} años · ` : ""}
+          ${victim.ultima_ubicacion || "Sin ubicación"}
+        </div>
+        <div class="hero-actions" style="justify-content:stretch">
+          <button class="btn-hero-ingresar" style="flex:2" type="button"
+            onclick="closeQuickModal();openReportModal(lastTriageResults.find(x=>x.id===${victim.id}))">
+            ✓ REPORTAR ENCONTRADO
+          </button>
+          <button class="btn-hero-fallecido" type="button" data-vid="${victim.id}"
+            onpointerdown="startHoldFallecido(this)" onpointerup="cancelHoldFallecido(this)"
+            onpointerleave="cancelHoldFallecido(this)">
+            Mantén 2s — Fallecido
+            <span class="hold-bar"></span>
+          </button>
+        </div>`;
+      $("quick-modal").classList.add("show");
+    }
+
+    let holdTimer = null;
+    function startHoldFallecido(btn) {
+      cancelHoldFallecido(btn);
+      const bar = btn.querySelector(".hold-bar");
+      const vid = +btn.dataset.vid;
+      let t = 0;
+      holdTimer = setInterval(() => {
+        t += 100;
+        bar.style.width = Math.min(100, (t / 2000) * 100) + "%";
+        if (t >= 2000) {
+          cancelHoldFallecido(btn);
+          markVictimStatus(vid, "fallecido", btn);
+          closeQuickModal();
+        }
+      }, 100);
+    }
+    function cancelHoldFallecido(btn) {
+      if (holdTimer) { clearInterval(holdTimer); holdTimer = null; }
+      const bar = btn?.querySelector?.(".hold-bar");
+      if (bar) bar.style.width = "0%";
+    }
 
     function $(id) { return document.getElementById(id); }
 
@@ -195,7 +1234,120 @@
         attribution: "© OSM", maxZoom: 18,
       }).addTo(map);
       missionLayer = L.layerGroup().addTo(map);
-      shelterLayer = L.layerGroup().addTo(map);
+    }
+
+    function initAcopioMap() {
+      acopioMap = L.map("acopio-map").setView([8.0, -66.5], 6);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: "© OSM", maxZoom: 18,
+      }).addTo(acopioMap);
+      acopioLayer = L.layerGroup().addTo(acopioMap);
+    }
+
+    function estadoEncontradoLabel(v) {
+      return ESTADO_LABELS[v] || v || "";
+    }
+
+    function intakeSummary(v) {
+      if (v.estado_raw !== "localizado" && v.estado_raw !== "fallecido") return "";
+      const parts = [];
+      if (v.ingreso_shelter_name) parts.push(`<strong>Hospital:</strong> ${v.ingreso_shelter_name}`);
+      if (v.estado_encontrado) parts.push(`<strong>Estado:</strong> ${estadoEncontradoLabel(v.estado_encontrado)}`);
+      if (v.ubicacion_encontrado) parts.push(`<strong>Encontrado en:</strong> ${v.ubicacion_encontrado}`);
+      if (v.descripcion_atencion) parts.push(`<strong>Atención:</strong> ${v.descripcion_atencion}`);
+      return parts.length ? `<div class="intake-info">${parts.join("<br>")}</div>` : "";
+    }
+
+    function closeReportModal() {
+      $("report-modal").classList.remove("show");
+      pendingReport = null;
+    }
+
+    function openReportModal(victim) {
+      if (!victim || victim.is_locked) return;
+      const cls = estadoClass(victim.estado_raw);
+      if (cls !== "desaparecido") return;
+      const shelterId = getTriageHospitalId();
+      if (!shelterId) return;
+      pendingReport = { victim, shelterId };
+      const hospitalOpts = triageHospitals.map(s =>
+        `<option value="${s.id}" ${s.id === shelterId ? "selected" : ""}>${s.name}</option>`
+      ).join("");
+      const estadoOpts = ESTADOS_ENCONTRADO.map(e =>
+        `<option value="${e.value}">${e.label}</option>`
+      ).join("");
+      $("report-sheet").innerHTML = `
+        <h3>Reportar encontrado</h3>
+        <p class="sub">${victim.nombre_completo}${victim.cedula ? ` · Cédula ${victim.cedula}` : ""}</p>
+        <div class="report-field">
+          <label>Hospital / refugio de destino</label>
+          <select id="report-hospital">${hospitalOpts}</select>
+        </div>
+        <div class="report-field">
+          <label>Estado al ser encontrado *</label>
+          <select id="report-estado" required>${estadoOpts}</select>
+        </div>
+        <div class="report-field">
+          <label>¿Dónde lo encontraron?</label>
+          <input id="report-ubicacion" type="text" placeholder="Ej: Escombros Av. Bolívar, piso 3" />
+        </div>
+        <div class="report-field">
+          <label>Descripción para atención posterior / tratamientos</label>
+          <textarea id="report-descripcion" placeholder="Lesiones visibles, medicación previa, alergias, ayuda que necesita la familia…"></textarea>
+        </div>
+        <div class="report-field">
+          <label>Notas adicionales del paramédico</label>
+          <textarea id="report-notas" placeholder="Signos vitales, movilización, observaciones…"></textarea>
+        </div>
+        <div class="report-actions">
+          <button class="btn-report-cancel" type="button" onclick="closeReportModal()">Cancelar</button>
+          <button class="btn-report-submit" type="button" onclick="submitReport()">✓ Confirmar ingreso</button>
+        </div>`;
+      $("report-modal").classList.add("show");
+      $("report-estado").focus();
+    }
+
+    async function submitReport() {
+      if (!pendingReport) return;
+      const estado = $("report-estado").value;
+      if (!estado) { showToast("Indica el estado al encontrar", "err"); return; }
+      const shelterId = $("report-hospital").value;
+      const btn = document.querySelector(".btn-report-submit");
+      if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
+      try {
+        const payload = {
+          status: "localizado",
+          shelter_id: shelterId,
+          estado_encontrado: estado,
+          ubicacion_encontrado: $("report-ubicacion").value.trim() || null,
+          descripcion_atencion: $("report-descripcion").value.trim() || null,
+          notas: $("report-notas").value.trim() || null,
+        };
+        const r = await fetch(`${API}/api/victims/${pendingReport.victim.id}/status`, {
+          method: "PATCH",
+          headers: forensicHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Error");
+        setHospital(shelterId);
+        const card = document.querySelector(`[data-vid="${data.id}"]`);
+        if (card) applyCardForensicLock(card, data);
+        showToast(`✓ Ingresado: ${data.nombre_completo} → ${data.ingreso_shelter_name}`, "ok");
+        addEncuentro({
+          title: `✓ ENCONTRADO: ${data.nombre_completo}`,
+          body: `${data.ingreso_shelter_name} · ${estadoEncontradoLabel(data.estado_encontrado)}${data.descripcion_atencion ? " · " + data.descripcion_atencion.slice(0, 80) : ""}`,
+          match: true,
+          flash: true,
+        });
+        closeReportModal();
+        closeQuickModal();
+        clearTriageSearch();
+        loadTriageStats();
+      } catch (e) {
+        showToast(e.message || "No se pudo guardar", "err");
+        if (btn) { btn.disabled = false; btn.textContent = "✓ Confirmar ingreso"; }
+      }
     }
 
     function connectWs() {
@@ -226,12 +1378,39 @@
           flash: true,
         });
       }
-      if (event === "inventory_updated") {
+      if (event === "inventory_updated" || event === "acopio_inventory_updated") {
         addEncuentro({
           title: `📦 Inventario: ${data.shelter_name}`,
           body: `${data.item_name} — ${data.quantity} (${data.status})`,
         });
         loadAcopio();
+      }
+      if (event === "acopio_submitted") {
+        acopioPendingCount = (acopioPendingCount || 0) + 1;
+        updatePendingBadge();
+        addEncuentro({
+          title: `📦 Nuevo acopio en revisión: ${data.name}`,
+          body: `${data.city}, ${data.state} — reportado por ${data.submitted_by_name}`,
+        });
+        if (isAcopioVerifier()) loadPendingAcopio();
+      }
+      if (event === "acopio_verified") {
+        addEncuentro({
+          title: `✓ Centro verificado: ${data.name}`,
+          body: `${data.city}, ${data.state} — ya visible en el mapa`,
+          match: true,
+          flash: true,
+        });
+        showToast(`Nuevo centro verificado: ${data.name}`, "ok");
+        loadAcopio();
+        if (isAcopioVerifier()) loadPendingAcopio();
+      }
+      if (event === "acopio_rejected" || event === "acopio_suspended") {
+        addEncuentro({
+          title: `⛔ Centro ${event === "acopio_rejected" ? "rechazado" : "suspendido"}: ${data.name}`,
+          body: data.rejection_reason || "",
+        });
+        if (isAcopioVerifier()) loadPendingAcopio();
       }
       if (event === "mission_accepted") {
         addEncuentro({
@@ -241,6 +1420,35 @@
         loadMissions();
       }
       if (event === "mission_created") loadMissions();
+      if (event === "victims_sync_cycle" || event === "victim_synced") {
+        loadTriageStats();
+      }
+      if (event === "edificacion_reportada" || event === "edificacion_verificada") {
+        window.CommandCenter?.onWsEvent(event, data);
+        addEncuentro({
+          title: event === "edificacion_reportada" ? `🏚️ Nuevo punto: ${data.nombre_edificio}` : `✓ Verificado: ${data.nombre_edificio}`,
+          body: data.direccion_texto || "",
+          match: true,
+          flash: true,
+        });
+      }
+      if (event === "victim_status_updated") {
+        const detalle = [
+          data.ingreso_shelter_name,
+          data.estado_encontrado ? estadoEncontradoLabel(data.estado_encontrado) : "",
+          data.descripcion_atencion ? data.descripcion_atencion.slice(0, 60) : "",
+        ].filter(Boolean).join(" · ");
+        const localized = data.estado_raw === "localizado" || (data.estado || "").toLowerCase().includes("localizado");
+        if (localized) showMatchBanner(`¡Un venezolano más ha sido localizado! ${data.nombre_completo}`);
+        addEncuentro({
+          title: localized ? `💛 ¡LOCALIZADO! ${data.nombre_completo}` : `🏥 ${data.nombre_completo}`,
+          body: detalle || `${data.cedula ? "Cédula " + data.cedula + " · " : ""}Estado: ${data.estado}`,
+          match: true,
+          flash: true,
+        });
+        const card = document.querySelector(`[data-vid="${data.id}"]`);
+        if (card) applyCardForensicLock(card, data);
+      }
     }
 
     function addEncuentro({ title, body, match, flash }) {
@@ -302,37 +1510,88 @@
       loadMissions();
     }
 
+    function renderAcopioFilters(states) {
+      const filters = $("acopio-filters");
+      const allBtn = `<button type="button" class="acopio-filter ${!acopioStateFilter ? "active" : ""}"
+        onclick="setAcopioFilter('')">Todo el país (${acopioCenters.length})</button>`;
+      const stateBtns = (states || []).map(st =>
+        `<button type="button" class="acopio-filter ${acopioStateFilter === st ? "active" : ""}"
+          onclick="setAcopioFilter('${st.replace(/'/g, "\\'")}')">${st}</button>`
+      ).join("");
+      filters.innerHTML = allBtn + stateBtns;
+    }
+
+    function setAcopioFilter(state) {
+      acopioStateFilter = state;
+      renderAcopioList();
+    }
+
+    function renderAcopioList() {
+      if (!acopioLayer) return;
+      acopioLayer.clearLayers();
+      const items = acopioStateFilter
+        ? acopioCenters.filter(c => c.state === acopioStateFilter)
+        : acopioCenters;
+      renderAcopioFilters([...new Set(acopioCenters.map(c => c.state).filter(Boolean))].sort());
+
+      const bounds = [];
+      $("acopio-grid").innerHTML = items.map(c => {
+        const color = c.status_color || "yellow";
+        const label = c.status_label || "PARCIAL";
+        bounds.push([c.lat, c.lng]);
+        const markerColor = color === "red" ? "#e85d5d" : color === "green" ? "#3ecf8e" : "#e8b84d";
+        L.circleMarker([c.lat, c.lng], {
+          radius: 9, fillColor: markerColor, color: "#fff", weight: 2, fillOpacity: 0.9,
+        }).bindPopup(`<b>${c.name}</b><br>${c.city}, ${c.state || ""}<br><em>${label}</em>`)
+          .addTo(acopioLayer);
+
+        const services = (c.services_offered || []).map(s =>
+          `<span class="service-tag">${SERVICE_LABELS[s] || s}</span>`
+        ).join("");
+        const needed = (c.needed_items || []).map(i =>
+          `<div class="item-row need-tag">🔴 Necesita: ${i.item_name} (${i.quantity} ${i.unit})</div>`
+        ).join("");
+        const surplus = (c.surplus_items || []).map(i =>
+          `<div class="item-row surplus-tag">🟢 Disponible: ${i.item_name} (${i.quantity} ${i.unit})</div>`
+        ).join("");
+        const invRows = needed + surplus || "<div class='item-row'>Sin inventario registrado</div>";
+
+        return `<article class="acopio-card ${color}">
+          <div class="acopio-card-head">
+            <div>
+              <h3>${c.name}</h3>
+              ${verifyBadge(c)}
+              <div class="acopio-meta">${c.city}${c.state ? ", " + c.state : ""}<br>${c.address}</div>
+            </div>
+            <span class="traffic ${color}" title="${label}"></span>
+          </div>
+          ${c.description ? `<div class="acopio-meta" style="margin-top:0.4rem">${c.description}</div>` : ""}
+          ${services ? `<div class="service-tags">${services}</div>` : ""}
+          ${invRows}
+          <div class="acopio-actions">
+            <a class="btn-maps" href="${c.maps_url}" target="_blank" rel="noopener">📍 Google Maps</a>
+            ${c.contact_phone ? `<a class="btn-maps secondary" href="tel:${c.contact_phone.replace(/\D/g,"")}">📞 ${c.contact_phone}</a>` : ""}
+            ${c.can_donate ? `<span class="btn-maps secondary" style="cursor:default">🎁 Acepta donaciones</span>` : ""}
+          </div>
+        </article>`;
+      }).join("") || "<p style='color:var(--muted)'>Sin centros en esta región</p>";
+
+      if (bounds.length && acopioMap) {
+        acopioMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+      }
+    }
+
     async function loadAcopio() {
-      const [shelters, inventory] = await Promise.all([
-        fetch(`${API}/api/shelters`).then(r => r.json()),
-        fetch(`${API}/api/inventory`).then(r => r.json()),
-      ]);
-      shelterLayer.clearLayers();
-      const byShelter = {};
-      (inventory.items || []).forEach(i => {
-        (byShelter[i.shelter_id] = byShelter[i.shelter_id] || []).push(i);
-      });
-
-      $("acopio-grid").innerHTML = (shelters.items || []).map(s => {
-        L.circleMarker([s.lat, s.lng], { radius: 8, fillColor: "#4db8a4", color: "#fff", fillOpacity: 0.8 })
-          .bindPopup(s.name).addTo(shelterLayer);
-        const items = byShelter[s.id] || [];
-        const needed = items.filter(i => i.status === "Necesitado").length;
-        const surplus = items.filter(i => i.status === "Excedente").length;
-        let color = "yellow", label = "PARCIAL";
-        if (needed >= 2 && surplus === 0) { color = "red"; label = "URGENTE"; }
-        else if (needed === 0 && surplus > 0) { color = "green"; label = "ABASTECIDO"; }
-        else if (needed === 0 && items.length === 0) { color = "yellow"; label = "SIN DATOS"; }
-
-        const rows = items.map(i =>
-          `<div class="item-row">${i.status === "Necesitado" ? "🔴" : "🟢"} ${i.item_name}: ${i.quantity} ${i.unit}</div>`
-        ).join("") || "<div class='item-row'>Sin inventario registrado</div>";
-
-        return `<div class="shelter-card ${color}">
-          <span class="traffic ${color}"></span><strong>${s.name}</strong> — ${label}
-          <div class="item-row">${s.current_occupancy}/${s.max_capacity} personas</div>${rows}
-        </div>`;
-      }).join("");
+      try {
+        const data = await (await fetch(`${API}/api/acopio`)).json();
+        acopioCenters = data.items || [];
+        acopioPendingCount = data.pending_count || 0;
+        if (data.service_options?.length) acopioServiceOptions = data.service_options;
+        updatePendingBadge();
+        renderAcopioList();
+      } catch {
+        $("acopio-grid").innerHTML = "<p style='color:var(--muted)'>No se pudo cargar centros de acopio</p>";
+      }
     }
 
     async function loadSurvivors() {
@@ -391,18 +1650,312 @@
       }
     }
 
+    function estadoClass(raw) {
+      const s = (raw || "").toLowerCase();
+      if (s === "localizado") return "localizado";
+      if (s === "fallecido") return "fallecido";
+      return "desaparecido";
+    }
+
+    function applyCardForensicLock(card, v) {
+      const cls = estadoClass(v.estado_raw);
+      const locked = v.is_locked || cls === "fallecido";
+      card.className = `med-card ${cls}${locked ? " locked" : ""}`;
+      const badge = card.querySelector(".med-badge");
+      if (badge) {
+        badge.className = `med-badge ${cls}`;
+        badge.textContent = v.estado;
+      }
+      const lockEl = card.querySelector(".forensic-lock");
+      if (lockEl) lockEl.classList.toggle("show", locked);
+      const btnLoc = card.querySelector(".med-btn-localizar");
+      const btnFall = card.querySelector(".med-btn-fallecido");
+      if (btnLoc) {
+        btnLoc.disabled = locked || cls === "localizado";
+        btnLoc.textContent = cls === "localizado" ? "✓ INGRESADO" : "✓ INGRESAR";
+      }
+      if (btnFall) {
+        btnFall.disabled = locked;
+        btnFall.textContent = cls === "fallecido" ? "✓ Fallecido" : "2s Fallecido";
+      }
+      const btnForense = card.querySelector(".btn-forense-card");
+      if (btnForense) btnForense.classList.toggle("visible", locked && isForensicAdmin());
+    }
+
+    function isExactMatch(v, q) {
+      const digits = (q || "").replace(/\D/g, "");
+      return (digits.length >= 6 && v.cedula === digits) ||
+        (v.nombre_completo || "").toLowerCase() === (q || "").toLowerCase();
+    }
+
+    function renderTriageResults(items, query = "") {
+      const box = $("triage-results");
+      lastTriageResults = items;
+      if (!items.length) {
+        box.innerHTML = "";
+        closeQuickModal();
+        return;
+      }
+
+      const hero = items.find(v => isExactMatch(v, query)) || (items.length === 1 ? items[0] : null);
+      if (hero && !hero.is_locked && estadoClass(hero.estado_raw) === "desaparecido") {
+        openQuickModal(hero);
+      }
+
+      let html = "";
+      if (hero && items.length > 1) {
+        const cls = estadoClass(hero.estado_raw);
+        const locked = hero.is_locked || cls === "fallecido";
+        html += `<div class="hero-card">
+          <div>
+            <div class="med-name">${hero.nombre_completo}</div>
+            <span class="med-badge ${cls}">${hero.estado}</span>
+            ${hero.cedula ? `<div style="font-size:0.8rem;color:var(--muted);margin-top:0.3rem">Cédula ${hero.cedula}</div>` : ""}
+          </div>
+          <div class="hero-actions">
+            <button class="btn-hero-ingresar" type="button" ${locked || cls !== "desaparecido" ? "disabled" : ""}
+              onclick="openReportModal(lastTriageResults.find(x=>x.id===${hero.id}))">✓ REPORTAR</button>
+            <button class="btn-hero-fallecido" type="button" data-vid="${hero.id}" ${locked ? "disabled" : ""}
+              onpointerdown="startHoldFallecido(this)" onpointerup="cancelHoldFallecido(this)"
+              onpointerleave="cancelHoldFallecido(this)">Mantén 2s — Fallecido<span class="hold-bar"></span></button>
+          </div></div>`;
+      }
+
+      html += items.filter(v => !hero || v.id !== hero.id).map(v => {
+        const cls = estadoClass(v.estado_raw);
+        const photo = v.fotografia
+          ? `<img class="med-photo" src="${v.fotografia}" alt="" loading="lazy" />`
+          : `<div class="med-photo placeholder">👤</div>`;
+        const tattoos = (v.tatuajes || []).length ? v.tatuajes.join(" · ") : "Sin registro";
+        const locked = v.is_locked || cls === "fallecido";
+        const ingreso = intakeSummary(v);
+        return `<article class="med-card ${cls}${locked ? " locked" : ""}" data-vid="${v.id}"
+          onclick="if(!event.target.closest('button,a'))openQuickModal(lastTriageResults.find(x=>x.id===${v.id}))">
+          <div class="med-card-head">
+            ${photo}
+            <div>
+              <div class="med-name">${v.nombre_completo}</div>
+              <span class="med-badge ${cls}">${v.estado}</span>
+              ${v.cedula ? `<div style="font-size:0.75rem;color:var(--muted)">${v.cedula}</div>` : ""}
+              <a class="med-link-detail" href="/victim_detail.html?id=${v.id}" onclick="event.stopPropagation()">Ver expediente →</a>
+            </div>
+          </div>
+          <div class="med-body" style="padding-top:0">${ingreso}</div>
+          ${locked ? `<div class="forensic-lock show"><span>🔒</span><span>Bloqueado — Acta forense</span></div>` : `
+          <div class="med-actions" style="border:none;padding-top:0">
+            <div class="med-actions-row">
+              <button class="med-btn-localizar" type="button" style="flex:2"
+                ${cls === "localizado" ? "disabled" : ""}
+                onclick="event.stopPropagation();openReportModal(lastTriageResults.find(x=>x.id===${v.id}))">
+                ${cls === "localizado" ? "✓ INGRESADO" : "✓ REPORTAR"}
+              </button>
+              <button class="med-btn-fallecido" type="button" data-vid="${v.id}"
+                onpointerdown="event.stopPropagation();startHoldFallecido(this)"
+                onpointerup="cancelHoldFallecido(this)" onpointerleave="cancelHoldFallecido(this)">
+                2s Fallecido<span class="hold-bar" style="position:absolute;left:0;bottom:0;height:3px;background:#fff;width:0"></span>
+              </button>
+            </div>
+          </div>`}
+        </article>`;
+      }).join("");
+      box.innerHTML = html;
+    }
+
+    async function runTriageSearch(q, { silent } = {}) {
+      const status = $("triage-status");
+      const minOk = q && (q.length >= 2 || /^\d+$/.test(q));
+      if (!minOk) {
+        status.textContent = q ? "Mínimo 2 letras o dígitos de cédula." : "";
+        if (!q) { $("triage-results").innerHTML = ""; closeQuickModal(); }
+        return;
+      }
+      if (!silent) status.textContent = "Buscando…";
+      try {
+        const params = new URLSearchParams({ q });
+        const r = await fetch(`${API}/api/victims/search?${params}`);
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || "Error de búsqueda");
+        saveRecentSearch(q);
+        renderTriageResults(data.items || [], q);
+        status.textContent = data.count
+          ? `${data.count} resultado${data.count === 1 ? "" : "s"} — ${data.count === 1 ? "panel rápido abierto" : "toca tarjeta para acciones"}`
+          : `Sin coincidencias`;
+        if (!data.count) closeQuickModal();
+      } catch (err) {
+        status.textContent = "Sin conexión — reintenta";
+        $("triage-results").innerHTML = "";
+        showToast("Error de búsqueda", "err");
+      }
+    }
+
+    async function markVictimStatus(id, status, btnEl) {
+      const shelterId = getTriageHospitalId();
+      if (!shelterId) return;
+      if (status === "localizado") {
+        const victim = lastTriageResults.find(x => x.id === id);
+        if (victim) openReportModal(victim);
+        return;
+      }
+      if (btnEl) { btnEl.disabled = true; btnEl.textContent = "…"; }
+      try {
+        const r = await fetch(`${API}/api/victims/${id}/status`, {
+          method: "PATCH",
+          headers: forensicHeaders(),
+          body: JSON.stringify({ status, shelter_id: shelterId, estado_encontrado: "fallecido_en_sitio" }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Error");
+        const card = document.querySelector(`[data-vid="${id}"]`);
+        if (card) applyCardForensicLock(card, data);
+        showToast(status === "fallecido"
+          ? `🔒 Fallecido registrado: ${data.nombre_completo}`
+          : `✓ Ingresado: ${data.nombre_completo}`, status === "fallecido" ? "info" : "ok");
+        addEncuentro({
+          title: data.is_locked ? `🔒 FALLECIDO: ${data.nombre_completo}` : `✓ ${data.estado}: ${data.nombre_completo}`,
+          body: data.ingreso_shelter_name || "",
+          match: !data.is_locked,
+          flash: true,
+        });
+        clearTriageSearch();
+        loadTriageStats();
+      } catch (e) {
+        showToast(e.message || "No se pudo guardar", "err");
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.textContent = status === "fallecido" ? "2s Fallecido" : "✓ INGRESAR";
+        }
+      }
+    }
+
+    async function openForensicConfirm(id) {
+      if (!isForensicAdmin()) {
+        showToast("Rol ADMIN_FORENSE requerido", "err");
+        return;
+      }
+      const nuevoEstado = "desaparecido";
+      try {
+        const r = await fetch(`${API}/api/victims/${id}/status`, {
+          method: "PATCH",
+          headers: forensicHeaders(),
+          body: JSON.stringify({
+            status: nuevoEstado.toLowerCase(),
+            confirmacion_postmortem: true,
+            notas: "Confirmación forense DVI",
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || "Rechazado");
+        const card = document.querySelector(`[data-vid="${id}"]`);
+        if (card) applyCardForensicLock(card, data);
+        addEncuentro({
+          title: `⚖️ Acta forense: ${data.nombre_completo}`,
+          body: `Estado revisado → ${data.estado}`,
+          match: true,
+          flash: true,
+        });
+        showToast(`Acta forense aplicada → ${data.estado}`, "ok");
+        loadTriageStats();
+      } catch (e) {
+        showToast(e.message || "Forense rechazado", "err");
+      }
+    }
+
+    async function loadTriageHospitals() {
+      try {
+        const { items } = await (await fetch(`${API}/api/shelters`)).json();
+        triageHospitals = (items || []).filter(s => s.shelter_type === "hospital" || s.shelter_type === "refugio");
+        const sel = $("triage-hospital");
+        sel.innerHTML = triageHospitals.map(s =>
+          `<option value="${s.id}">${s.name}</option>`
+        ).join("");
+        const chips = $("hospital-chips");
+        chips.innerHTML = triageHospitals.map(s =>
+          `<button type="button" class="hospital-chip" data-id="${s.id}"
+            onclick="setHospital('${s.id}')">${s.name.replace(/Hospital Vargas.*/, "🏥 Vargas").replace(/Refugio.*/, "🏕️ Refugio").slice(0, 28)}</button>`
+        ).join("");
+        const saved = localStorage.getItem(HOSPITAL_KEY);
+        if (saved && triageHospitals.some(s => s.id === saved)) setHospital(saved);
+        else if (triageHospitals.length === 1) setHospital(triageHospitals[0].id);
+        else setHospital("");
+      } catch {}
+    }
+
+    async function loadTriageStats() {
+      try {
+        const d = await (await fetch(`${API}/api/victims/stats`)).json();
+        const l = d.local_db || {};
+        const f = d.fuente_externa || {};
+        const syncCls = f.api_online ? "on" : "off";
+        const syncTxt = f.api_online ? "API en línea" : "Solo BD local";
+        $("triage-metrics").innerHTML = `
+          <span>BD local: <strong>${(l.total || 0).toLocaleString("es-VE")}</strong></span>
+          <span>Desaparecidos: <strong>${(l.desaparecidos || 0).toLocaleString("es-VE")}</strong></span>
+          <span>Localizados: <strong>${(l.localizados || 0).toLocaleString("es-VE")}</strong></span>
+          <span>Cédulas indexadas: <strong>${(l.con_cedula || 0).toLocaleString("es-VE")}</strong></span>
+          <span>Ingresos hoy: <strong>${l.ingresos_hoy || 0}</strong></span>
+          <span>Fuente: <strong>${(f.total || 0).toLocaleString("es-VE")}</strong>
+            <span class="sync-pill ${syncCls}">${syncTxt}</span></span>
+        `;
+      } catch {
+        $("triage-metrics").textContent = "";
+      }
+    }
+
+    $("triage-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      runTriageSearch($("triage-query").value.trim());
+    });
+    $("triage-clear").addEventListener("click", clearTriageSearch);
+    $("metrics-toggle").addEventListener("click", () => {
+      $("triage-metrics").classList.toggle("collapsed");
+      $("metrics-toggle").textContent = $("triage-metrics").classList.contains("collapsed")
+        ? "▸ Ver estadísticas" : "▾ Ocultar estadísticas";
+    });
+    $("triage-query").addEventListener("input", (e) => {
+      const q = e.target.value.trim();
+      e.target.inputMode = /^\d+$/.test(q) ? "numeric" : "text";
+      clearTimeout(triageDebounce);
+      triageDebounce = setTimeout(() => runTriageSearch(q, { silent: true }), 140);
+    });
+    $("triage-query").addEventListener("paste", () => {
+      setTimeout(() => runTriageSearch($("triage-query").value.trim()), 50);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.id === "triage-query" || e.target.closest(".triage-panel")) {
+        if (e.key === "Escape") { e.preventDefault(); clearTriageSearch(); }
+        if (e.key === "1" && !e.ctrlKey && !e.metaKey && document.activeElement?.id === "triage-query") {
+          const first = lastTriageResults[0];
+          if (first && estadoClass(first.estado_raw) === "desaparecido") {
+            e.preventDefault();
+            openReportModal(first);
+          }
+        }
+      }
+    });
+
     window.addEventListener("online", () => { $("offline-bar").classList.remove("show"); window.OfflineQueue?.flush(); });
     window.addEventListener("offline", () => $("offline-bar").classList.add("show"));
     if (!navigator.onLine) $("offline-bar").classList.add("show");
 
     initMap();
+    initAcopioMap();
+    window.CommandCenter?.init().then(() => {
+      document.getElementById("loading-banner")?.classList.remove("show");
+    });
     connectWs();
+    loadTriageHospitals();
+    renderRecentSearches();
+    loadTriageStats();
+    $("triage-query").focus();
     loadStats();
     loadEmergencias();
     loadMissions();
     loadAcopio();
+    updateVerifierUI();
+    loadPendingAcopio();
     loadSurvivors();
     setInterval(loadStats, 30000);
+    setInterval(loadTriageStats, 30000);
     setInterval(loadAcopio, 45000);
   </script>
 </body>

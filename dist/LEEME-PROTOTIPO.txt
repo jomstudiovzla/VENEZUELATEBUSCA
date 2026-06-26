@@ -1,0 +1,31 @@
+RED DE ESPERANZA — PROTOTIPO MÓVIL
+==================================
+
+IPHONE / IPAD (más rápido — sin App Store)
+------------------------------------------
+1. En esta Mac: doble clic en scripts/iniciar-prototipo.command
+2. iPhone en la MISMA Wi‑Fi → Safari → abre la URL que muestra la terminal
+   (o escanea el QR en /mobile/install.html)
+3. Safari → Compartir → «Añadir a pantalla de inicio»
+4. Login: JOM / Studio
+
+ANDROID
+-------
+Opción A — PWA: mismo enlace en Chrome → «Instalar aplicación»
+Opción B — APK: instala dist/RedEsperanza-debug.apk
+   (Activa «Orígenes desconocidos» si el sistema lo pide)
+   Al abrir la app, escribe la IP de tu Mac: http://192.168.x.x:8000
+
+NOTA APK / iOS NATIVO
+---------------------
+La app nativa es un contenedor WebView. El servidor FastAPI debe estar
+corriendo en tu Mac (scripts/iniciar-prototipo.sh).
+
+iOS nativo (.ipa) requiere Xcode + cuenta Apple Developer.
+Proyecto Capacitor: mobile-native/ (ejecuta «npx cap add ios» con CocoaPods).
+
+ARCHIVOS EN ESTE PAQUETE
+------------------------
+dist/RedEsperanza-debug.apk     → Android
+dist/RedEsperanza-Prototipo-*.zip → Proyecto completo
+scripts/iniciar-prototipo.command → Arrancar servidor + QR

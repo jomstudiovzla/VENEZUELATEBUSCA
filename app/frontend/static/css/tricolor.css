@@ -1,0 +1,251 @@
+:root {
+  --vz-amarillo: #FFCC00;
+  --vz-azul: #00247D;
+  --vz-rojo: #CF142B;
+  --vz-blanco: #FFFFFF;
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --hope: #0d9488;
+  --ok: #16a34a;
+  --urgent: #dc2626;
+  --warn: #d97706;
+}
+
+* { box-sizing: border-box; }
+body.tricolor {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  margin: 0;
+}
+
+.bandera-nav {
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 24px rgba(0, 36, 125, 0.15);
+}
+.bandera-stripe {
+  height: 6px;
+}
+.bandera-stripe.amarillo { background: var(--vz-amarillo); }
+.bandera-stripe.azul {
+  background: var(--vz-azul);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 8px;
+}
+.bandera-stripe.azul span {
+  color: var(--vz-blanco);
+  font-size: 0.45rem;
+  line-height: 1;
+}
+.bandera-stripe.rojo { background: var(--vz-rojo); }
+
+.command-header {
+  background: linear-gradient(135deg, var(--vz-azul) 0%, #001a5c 100%);
+  color: var(--vz-blanco);
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.command-header h1 {
+  font-family: Merriweather, Georgia, serif;
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  margin: 0;
+  color: var(--vz-amarillo);
+  letter-spacing: 0.02em;
+}
+.command-header .motto {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.2rem;
+}
+.command-header .resilience {
+  font-weight: 700;
+  color: var(--vz-amarillo);
+}
+.header-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+.header-stats strong { color: var(--vz-amarillo); }
+
+.command-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 38%) 1fr;
+  gap: 0;
+  min-height: calc(100vh - 120px);
+}
+@media (max-width: 960px) {
+  .command-layout { grid-template-columns: 1fr; }
+}
+
+.command-sidebar {
+  background: var(--panel);
+  border-right: 3px solid var(--vz-amarillo);
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+  padding: 0.75rem;
+}
+
+.command-map-panel {
+  position: relative;
+  min-height: 480px;
+  background: #e2e8f0;
+}
+#google-command-map {
+  width: 100%;
+  height: calc(100vh - 120px);
+  min-height: 480px;
+}
+
+.map-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.map-toolbar button {
+  padding: 0.5rem 0.85rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: var(--vz-azul);
+  color: var(--vz-blanco);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.map-toolbar button.gps { background: var(--vz-rojo); }
+.map-toolbar button.accent { background: var(--vz-amarillo); color: var(--vz-azul); }
+
+.loading-banner {
+  display: none;
+  text-align: center;
+  padding: 0.65rem;
+  background: linear-gradient(90deg, var(--vz-amarillo), var(--vz-rojo));
+  color: var(--vz-azul);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.loading-banner.show { display: block; }
+
+.match-toast-vz {
+  background: linear-gradient(135deg, var(--vz-amarillo), #ffe566);
+  color: var(--vz-azul);
+  border: 2px solid var(--vz-rojo);
+  font-weight: 800;
+}
+
+.triage-panel.tricolor-panel {
+  background: var(--panel);
+  border: 2px solid var(--vz-azul);
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+.triage-panel.tricolor-panel h2 {
+  color: var(--vz-azul);
+  font-size: 1rem;
+}
+
+.victims-feed {
+  margin-top: 0.5rem;
+}
+.victims-feed h3 {
+  font-size: 0.82rem;
+  color: var(--vz-rojo);
+  margin: 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.secondary-panels {
+  margin-top: 0.75rem;
+  border-top: 2px solid var(--vz-amarillo);
+  padding-top: 0.5rem;
+}
+.panel-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.panel-tab {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid var(--vz-azul);
+  background: transparent;
+  color: var(--vz-azul);
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.panel-tab.active {
+  background: var(--vz-azul);
+  color: var(--vz-blanco);
+}
+
+.pulse-marker {
+  animation: mapPulse 1.4s ease-in-out infinite;
+}
+@keyframes mapPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.75; }
+}
+
+.mobile-entry {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 50;
+  padding: 0.55rem 0.9rem;
+  background: var(--vz-rojo);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(207, 20, 43, 0.4);
+}
+
+/* Override dark theme remnants when tricolor active */
+body.tricolor .triage-input,
+body.tricolor .field input,
+body.tricolor .field select,
+body.tricolor .field textarea {
+  background: #fff;
+  color: var(--text);
+  border-color: rgba(0, 36, 125, 0.25);
+}
+body.tricolor .med-card {
+  background: #f8fafc;
+  border: 1px solid rgba(0, 36, 125, 0.12);
+  color: var(--text);
+}
+body.tricolor .med-name { color: var(--vz-azul); }
+body.tricolor .encuentro {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: rgba(22, 163, 74, 0.3);
+  color: var(--text);
+}
+body.tricolor .section {
+  background: var(--panel);
+  border-color: rgba(0, 36, 125, 0.15);
+  min-height: auto;
+}
+body.tricolor .section-head h2 { color: var(--vz-azul); }

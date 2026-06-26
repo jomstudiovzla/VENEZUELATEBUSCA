@@ -1,3 +1,11 @@
+# Node
+node_modules/
+.tools/
+dist/*.zip
+!dist/LEEME-PROTOTIPO.txt
+!dist/RedEsperanza-debug.apk
+!dist/RedEsperanza-Instalar-Movil-*.zip
+
 # Entorno
 .venv/
 cloudflared

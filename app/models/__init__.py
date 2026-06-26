@@ -1,25 +1,33 @@
 from app.models.models import (
     Base,
+    Building,
     Inventory,
     InventoryStatus,
     MissingReport,
+    MissingVictim,
     Mission,
     MissionStatus,
     ReportStatus,
     Shelter,
     ShelterType,
     Survivor,
+    TipoEstructura,
+    VictimStatus,
 )
 
 __all__ = [
     "Base",
+    "Building",
     "Shelter",
     "Inventory",
     "Survivor",
     "MissingReport",
+    "MissingVictim",
     "Mission",
     "ShelterType",
+    "TipoEstructura",
     "InventoryStatus",
     "MissionStatus",
     "ReportStatus",
+    "VictimStatus",
 ]

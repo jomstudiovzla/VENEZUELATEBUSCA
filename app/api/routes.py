@@ -25,11 +25,14 @@ from app.models.models import (
     Shelter,
     ShelterType,
     Survivor,
+    VerificationStatus,
 )
 from app.services.semantic_matcher import run_matching_cycle
+from app.api.edificaciones_endpoint import router as edificaciones_router
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+router.include_router(edificaciones_router)
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -39,6 +42,9 @@ class ShelterCreate(BaseModel):
     shelter_type: ShelterType = ShelterType.REFUGIO
     address: str
     city: str
+    state: Optional[str] = None
+    description: Optional[str] = None
+    services_offered: Optional[list[str]] = None
     contact_phone: Optional[str] = None
     max_capacity: int = 100
     lat: float
@@ -148,13 +154,43 @@ def _shelter_dict(s: Shelter) -> dict:
         "shelter_type": s.shelter_type.value,
         "address": s.address,
         "city": s.city,
+        "state": s.state,
+        "description": s.description,
+        "services_offered": s.services_offered or [],
         "contact_phone": s.contact_phone,
         "max_capacity": s.max_capacity,
         "current_occupancy": s.current_occupancy,
         "occupancy_pct": occ_pct,
         "lat": s.lat,
         "lng": s.lng,
+        "maps_url": f"https://www.google.com/maps/search/?api=1&query={s.lat},{s.lng}",
     }
+
+
+def _inventory_dict(i: Inventory, shelter_name: str = "") -> dict:
+    return {
+        "id": i.id,
+        "shelter_id": i.shelter_id,
+        "shelter_name": shelter_name,
+        "item_name": i.item_name,
+        "quantity": i.quantity,
+        "unit": i.unit,
+        "status": i.status.value,
+        "notes": i.notes,
+        "updated_at": i.updated_at.isoformat() if i.updated_at else None,
+    }
+
+
+def _acopio_status(items: list[Inventory]) -> tuple[str, str]:
+    needed = sum(1 for i in items if i.status == InventoryStatus.NECESITADO)
+    surplus = sum(1 for i in items if i.status == InventoryStatus.EXCEDENTE)
+    if needed >= 2 and surplus == 0:
+        return "red", "URGENTE"
+    if needed == 0 and surplus > 0:
+        return "green", "ABASTECIDO"
+    if needed == 0 and not items:
+        return "yellow", "SIN DATOS"
+    return "yellow", "PARCIAL"
 
 
 # ── Health & Dashboard ───────────────────────────────────────────────────────
@@ -203,14 +239,33 @@ async def dashboard(session: AsyncSession = Depends(get_session)):
 # ── Shelters ─────────────────────────────────────────────────────────────────
 
 @router.get("/api/shelters")
-async def list_shelters(session: AsyncSession = Depends(get_session)):
-    rows = (await session.execute(select(Shelter).where(Shelter.is_active == True).order_by(Shelter.name))).scalars().all()  # noqa: E712
+async def list_shelters(
+    shelter_type: Optional[ShelterType] = None,
+    state: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(Shelter).where(
+        Shelter.is_active == True,  # noqa: E712
+        Shelter.verification_status == VerificationStatus.VERIFICADO.value,
+    ).order_by(Shelter.state, Shelter.city, Shelter.name)
+    if shelter_type:
+        q = q.where(Shelter.shelter_type == shelter_type)
+    if state:
+        q = q.where(Shelter.state.ilike(f"%{state.strip()}%"))
+    rows = (await session.execute(q)).scalars().all()
     return {"items": [_shelter_dict(s) for s in rows]}
 
 
 @router.post("/api/shelters", status_code=201)
 async def create_shelter(payload: ShelterCreate, session: AsyncSession = Depends(get_session)):
-    shelter = Shelter(**payload.model_dump())
+    data = payload.model_dump()
+    if payload.shelter_type == ShelterType.ACOPIO:
+        raise HTTPException(
+            400,
+            "Los centros de acopio deben registrarse vía POST /api/acopio/submit para verificación",
+        )
+    shelter = Shelter(**data)
+    shelter.verification_status = "verificado"
     session.add(shelter)
     await session.flush()
     return _shelter_dict(shelter)
@@ -224,20 +279,13 @@ async def list_inventory(shelter_id: Optional[str] = None, session: AsyncSession
     if shelter_id:
         q = q.where(Inventory.shelter_id == shelter_id)
     rows = (await session.execute(q.limit(500))).scalars().all()
+    shelter_names = {}
+    if rows:
+        shelter_ids = {i.shelter_id for i in rows}
+        shelter_rows = (await session.execute(select(Shelter).where(Shelter.id.in_(shelter_ids)))).scalars().all()
+        shelter_names = {s.id: s.name for s in shelter_rows}
     return {
-        "items": [
-            {
-                "id": i.id,
-                "shelter_id": i.shelter_id,
-                "item_name": i.item_name,
-                "quantity": i.quantity,
-                "unit": i.unit,
-                "status": i.status.value,
-                "notes": i.notes,
-                "updated_at": i.updated_at.isoformat() if i.updated_at else None,
-            }
-            for i in rows
-        ]
+        "items": [_inventory_dict(i, shelter_names.get(i.shelter_id, "")) for i in rows]
     }
 
 
@@ -258,6 +306,7 @@ async def create_inventory(payload: InventoryCreate, session: AsyncSession = Dep
         "status": item.status.value,
     }
     await dashboard_ws.broadcast("inventory_updated", data)
+    await dashboard_ws.broadcast("acopio_inventory_updated", data)
     return data
 
 
@@ -278,6 +327,7 @@ async def update_inventory(item_id: str, payload: InventoryUpdate, session: Asyn
         "status": item.status.value,
     }
     await dashboard_ws.broadcast("inventory_updated", data)
+    await dashboard_ws.broadcast("acopio_inventory_updated", data)
     return data
 
 

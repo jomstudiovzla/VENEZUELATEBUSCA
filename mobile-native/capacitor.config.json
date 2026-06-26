@@ -1,0 +1,15 @@
+{
+  "appId": "com.redesperanza.vzla",
+  "appName": "Red de Esperanza",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

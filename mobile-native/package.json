@@ -1,0 +1,14 @@
+{
+  "name": "red-esperanza-native",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "sync": "npx cap sync",
+    "android": "npx cap open android",
+    "ios": "npx cap open ios",
+    "build:apk": "cd android && ./gradlew assembleDebug"
+  },
+  "capacitor": {
+    "platforms": ["android", "ios"]
+  }
+}

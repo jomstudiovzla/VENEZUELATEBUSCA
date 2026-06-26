@@ -1,0 +1,26 @@
+{
+  "name": "ojo-de-dios",
+  "version": "1.0.0",
+  "description": "Sistema humanitario SAR/DVI para búsqueda de personas desaparecidas y monitoreo de edificios dañados tras el terremoto en Venezuela (2026).",
+  "main": "index.js",
+  "scripts": {
+    "build:firebase": "esbuild app/shared/firebase-client.js --bundle --format=iife --global-name=RedEsperanzaFirebase --outfile=app/familiar/firebase.bundle.js --platform=browser",
+    "build:apk": "bash scripts/build-apk.sh",
+    "prototipo": "bash scripts/iniciar-prototipo.sh",
+    "pack:movil": "bash scripts/empaquetar-prototipo.sh",
+    "postinstall": "npm run build:firebase"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase": "^12.15.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^7.6.7",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "esbuild": "^0.28.1"
+  }
+}

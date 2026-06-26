@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#1a3a5c" />
+  <title>Buscar familiar — Red de Esperanza</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root { --bg:#0f1f33; --panel:#1a3a5c; --hope:#4db8a4; --ok:#3ecf8e; --text:#eef4fa; --muted:#9bb4cc; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); min-height:100dvh; }
+    header { padding:1rem; background:var(--panel); border-bottom:2px solid var(--hope); text-align:center; }
+    header h1 { font-size:1.1rem; color:var(--hope); }
+    header p { font-size:0.78rem; color:var(--muted); margin-top:0.25rem; }
+    .wrap { padding:1rem; max-width:480px; margin:0 auto; }
+    .field { margin-bottom:0.75rem; }
+    .field label { display:block; font-size:0.75rem; color:var(--muted); margin-bottom:0.3rem; }
+    .field input, .field textarea { width:100%; padding:0.7rem; border-radius:8px; border:1px solid rgba(77,184,164,0.35); background:rgba(15,31,51,0.9); color:var(--text); font-size:16px; }
+    .btn { width:100%; padding:0.9rem; border:none; border-radius:10px; background:var(--hope); color:#0f1f33; font-weight:800; font-size:1rem; cursor:pointer; }
+    #map { height:220px; border-radius:10px; margin:1rem 0; border:1px solid rgba(255,255,255,0.1); }
+    .results { margin-top:1rem; }
+    .card { background:var(--panel); border-radius:10px; padding:0.85rem; margin-bottom:0.6rem; border-left:3px solid var(--ok); font-size:0.85rem; }
+    .card.match { animation:flash 1s ease 2; }
+    @keyframes flash { 50% { background:rgba(62,207,142,0.25); } }
+    .live { font-size:0.72rem; color:var(--ok); text-align:center; margin-bottom:0.5rem; }
+    .tabs { display:flex; gap:0.5rem; margin-bottom:0.75rem; }
+    .tab { flex:1; padding:0.5rem; border-radius:8px; border:1px solid rgba(77,184,164,0.35); background:transparent; color:var(--muted); font-size:0.78rem; cursor:pointer; }
+    .tab.on { border-color:var(--hope); color:var(--hope); }
+    a { color:var(--hope); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔍 Buscar a mi familiar</h1>
+    <p>Actualización en tiempo real · testimonios · centros de ayuda</p>
+    <div class="live"><span id="live-status">Conectando…</span> · <span id="firebase-status" style="color:var(--muted)">Firebase…</span></div>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab on" type="button" onclick="setMode('search')">Buscar</button>
+      <button class="tab" type="button" onclick="setMode('register')">Reportar desaparecido</button>
+    </div>
+    <div id="panel-search">
+      <div class="field"><label>Nombre de la persona</label><input id="q-name" placeholder="Nombre completo o parte" /></div>
+      <button class="btn" type="button" onclick="searchAll()">Buscar ahora</button>
+    </div>
+    <div id="panel-register" style="display:none">
+      <div class="field"><label>Tu nombre</label><input id="r-seeker" /></div>
+      <div class="field"><label>Tu teléfono</label><input id="r-phone" type="tel" /></div>
+      <div class="field"><label>Nombre del desaparecido *</label><input id="r-missing" /></div>
+      <div class="field"><label>Última ubicación conocida</label><input id="r-loc" /></div>
+      <div class="field"><label>Descripción</label><textarea id="r-desc" rows="3" placeholder="Ropa, edad, señas particulares…"></textarea></div>
+      <button class="btn" type="button" onclick="registerMissing()">Registrar búsqueda</button>
+    </div>
+    <div id="map"></div>
+    <div class="results" id="results"></div>
+    <p style="margin-top:1rem;font-size:0.72rem;color:var(--muted);text-align:center">
+      <a href="/mobile/">App voluntarios</a> · Datos sincronizados con Punto de Apoyo
+    </p>
+  </div>
+  <script src="/familiar/firebase.bundle.js"></script>
+  <script>
+    const API = "";
+    const SYNC_MS = 250;
+    let map, layer;
+    let ws;
+    let lastQuery = "";
+    let firebaseCfg = null;
+    let fbLive = { victims: {}, testimonies: {} };
+    let firebaseClient = null;
+
+    function setMode(m) {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("on"));
+      event.target.classList.add("on");
+      $("panel-search").style.display = m === "search" ? "block" : "none";
+      $("panel-register").style.display = m === "register" ? "block" : "none";
+    }
+    function $(id) { return document.getElementById(id); }
+
+    function initMap() {
+      map = L.map("map").setView([10.49, -66.85], 7);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png").addTo(map);
+      layer = L.layerGroup().addTo(map);
+    }
+
+    async function searchVictims(q) {
+      const r = await fetch(`${API}/api/victims/search?q=${encodeURIComponent(q)}&limit=10`);
+      return (await r.json()).items || [];
+    }
+
+    async function searchTestimonies(q) {
+      const r = await fetch(`${API}/api/volunteer/testimonies?q=${encodeURIComponent(q)}&limit=10`);
+      return (await r.json()).items || [];
+    }
+
+    function firebaseObjectsToList(obj) {
+      if (!obj || typeof obj !== "object") return [];
+      return Object.entries(obj).map(([key, val]) => ({ ...val, _fbKey: key }));
+    }
+
+    async function loadFirebaseData() {
+      if (firebaseClient) {
+        return {
+          victims: firebaseObjectsToList(fbLive.victims),
+          testimonies: firebaseObjectsToList(fbLive.testimonies),
+        };
+      }
+      try {
+        const [v, t] = await Promise.all([
+          fetch(`${API}/api/firebase/victimas`).then(r => r.json()),
+          fetch(`${API}/api/firebase/testimonios`).then(r => r.json()),
+        ]);
+        return { victims: v.items || [], testimonies: t.items || [] };
+      } catch { return { victims: [], testimonies: [] }; }
+    }
+
+    function filterFirebase(items, q) {
+      if (!q) return items;
+      const lq = q.toLowerCase();
+      return items.filter(x => {
+        const name = (x.nombre_completo || x.heard_name || x.missing_person_name || "").toLowerCase();
+        return name.includes(lq);
+      });
+    }
+
+    function renderResults(victims, testimonies, fbVictims = [], fbTestimonies = []) {
+      const box = $("results");
+      let html = "";
+      if (firebaseCfg?.project_id) {
+        html += `<p style="font-size:0.72rem;color:var(--hope);margin-bottom:0.5rem">☁️ Firebase ${firebaseCfg.project_id} sincronizado</p>`;
+      }
+      victims.forEach(v => {
+        const ingreso = v.ingreso_shelter_name ? ` → ${v.ingreso_shelter_name}` : "";
+        const estado = v.estado_encontrado ? ` · ${v.estado_encontrado}` : "";
+        html += `<article class="card ${v.estado_raw === "localizado" ? "match" : ""}">
+          <strong>${v.nombre_completo}</strong> — ${v.estado}${ingreso}${estado}
+          ${v.ubicacion_encontrado ? `<br><small>Encontrado: ${v.ubicacion_encontrado}</small>` : ""}
+          ${v.descripcion_atencion ? `<br><small>${v.descripcion_atencion}</small>` : ""}
+        </article>`;
+      });
+      testimonies.forEach(t => {
+        html += `<article class="card match">
+          <strong>🎤 Testimonio: "${t.heard_name}"</strong>
+          <br><small>${t.location_text} · ${t.volunteer_name}</small>
+          ${t.destination_name ? `<br><small>Traslado: ${t.destination_name}</small>` : ""}
+          <br><a href="${t.maps_url}" target="_blank">Ver en mapa</a>
+        </article>`;
+        if (t.lat && t.lng) L.circleMarker([t.lat, t.lng], { radius:8, fillColor:"#3ecf8e", color:"#fff", fillOpacity:0.9 })
+          .bindPopup(t.heard_name).addTo(layer);
+      });
+      fbVictims.forEach(v => {
+        if (victims.some(x => x.id === v.id)) return;
+        html += `<article class="card match">
+          <strong>☁️ ${v.nombre_completo || "Persona localizada"}</strong> — ${v.estado || "actualizado"}
+          ${v.ingreso_shelter_name ? `<br><small>Hospital: ${v.ingreso_shelter_name}</small>` : ""}
+          ${v.ubicacion_encontrado ? `<br><small>En: ${v.ubicacion_encontrado}</small>` : ""}
+        </article>`;
+      });
+      fbTestimonies.forEach(t => {
+        if (testimonies.some(x => x.id === t.id)) return;
+        html += `<article class="card match">
+          <strong>☁️ Testimonio: "${t.heard_name}"</strong>
+          <br><small>${t.location_text || ""}</small>
+        </article>`;
+        if (t.lat && t.lng) L.circleMarker([t.lat, t.lng], { radius:7, fillColor:"#4db8a4", color:"#fff", fillOpacity:0.85 })
+          .bindPopup(t.heard_name).addTo(layer);
+      });
+      box.innerHTML = html || "<p style='color:var(--muted)'>Sin resultados aún. Seguimos buscando en tiempo real.</p>";
+    }
+
+    async function searchAll() {
+      lastQuery = $("q-name").value.trim();
+      if (!lastQuery) return;
+      layer.clearLayers();
+      const [victims, testimonies, fb] = await Promise.all([
+        searchVictims(lastQuery),
+        searchTestimonies(lastQuery),
+        loadFirebaseData(),
+      ]);
+      const fbV = filterFirebase(fb.victims, lastQuery);
+      const fbT = filterFirebase(fb.testimonies, lastQuery);
+      renderResults(victims, testimonies, fbV, fbT);
+      loadHelpPoints();
+    }
+
+    async function loadHelpPoints() {
+      try {
+        const d = await (await fetch(`${API}/api/map/points?category=acopio`)).json();
+        (d.items || []).slice(0, 30).forEach(p => {
+          L.circleMarker([p.lat, p.lng], { radius:5, fillColor:"#3b82f6", color:"#fff", fillOpacity:0.7 })
+            .bindPopup(`<b>${p.name}</b>`).addTo(layer);
+        });
+      } catch {}
+    }
+
+    async function registerMissing() {
+      const payload = {
+        seeker_name: $("r-seeker").value.trim(),
+        seeker_contact: $("r-phone").value.trim(),
+        missing_person_name: $("r-missing").value.trim(),
+        description: $("r-desc").value.trim(),
+        last_seen_location: $("r-loc").value.trim() || null,
+      };
+      if (!payload.missing_person_name || !payload.seeker_name) return alert("Completa nombre y contacto");
+      const r = await fetch(`${API}/api/familiar/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (!r.ok) return alert(d.detail || "Error");
+      alert("Búsqueda registrada. Te avisaremos si hay coincidencias.");
+      $("q-name").value = payload.missing_person_name;
+      setMode("search");
+      document.querySelector(".tab").click();
+      searchAll();
+    }
+
+    function connectWs() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/ws/dashboard`);
+      ws.onopen = () => { $("live-status").textContent = "● En vivo — actualización cada 0.25s"; };
+      ws.onclose = () => { $("live-status").textContent = "Reconectando…"; setTimeout(connectWs, 2000); };
+      ws.onmessage = e => {
+        const msg = JSON.parse(e.data);
+        if (["victim_status_updated","testimony_created","testimony_match","family_search"].includes(msg.event) && lastQuery) {
+          searchAll();
+        }
+      };
+    }
+
+    async function initFirebase() {
+      try {
+        const [cfg, st] = await Promise.all([
+          fetch(`${API}/api/firebase/config`).then(r => r.json()),
+          fetch(`${API}/api/firebase/status`).then(r => r.json()),
+        ]);
+        firebaseCfg = cfg;
+        $("firebase-status").textContent = st.reachable
+          ? `☁️ ${cfg.project_id} SDK npm`
+          : `☁️ ${cfg.project_id} (crea Realtime DB en consola)`;
+
+        if (window.RedEsperanzaFirebase?.createFirebaseClient) {
+          firebaseClient = window.RedEsperanzaFirebase.createFirebaseClient(cfg, {
+            onVictims: (data) => {
+              fbLive.victims = data || {};
+              if (lastQuery) searchAll();
+            },
+            onTestimonies: (data) => {
+              fbLive.testimonies = data || {};
+              if (lastQuery) searchAll();
+            },
+            onError: (path, err) => {
+              console.warn("Firebase", path, err);
+              $("firebase-status").textContent = `☁️ ${cfg.project_id} — revisa reglas BD`;
+            },
+          });
+          $("firebase-status").textContent = `☁️ ${cfg.project_id} · tiempo real`;
+        }
+      } catch {
+        $("firebase-status").textContent = "Firebase pendiente";
+      }
+    }
+
+    initMap();
+    initFirebase();
+    connectWs();
+    loadHelpPoints();
+    setInterval(() => { if (lastQuery) searchAll(); }, SYNC_MS);
+  </script>
+</body>
+</html>

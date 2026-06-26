@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Red de Esperanza</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a1628; color: #eef4fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1.5rem; text-align: center; }
+    .box { max-width: 360px; }
+    h1 { color: #4db8a4; font-size: 1.2rem; }
+    p { color: #9bb4cc; font-size: 0.9rem; line-height: 1.5; }
+    input { width: 100%; padding: 0.75rem; margin: 0.75rem 0; border-radius: 8px; border: 1px solid #4db8a4; background: #152a42; color: #fff; font-size: 16px; }
+    button { width: 100%; padding: 0.85rem; border: none; border-radius: 10px; background: #3ecf8e; color: #0a1628; font-weight: 700; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Red de Esperanza</h1>
+    <p>Conecta al servidor en tu Mac (misma Wi‑Fi). Ejecuta <strong>scripts/iniciar-prototipo.sh</strong> primero.</p>
+    <input id="host" placeholder="http://192.168.1.10:8000" />
+    <button type="button" onclick="go()">Abrir app</button>
+  </div>
+  <script>
+    const saved = localStorage.getItem("re_server");
+    if (saved) location.replace(saved + "/mobile/");
+    document.getElementById("host").value = saved || "";
+    function go() {
+      let u = document.getElementById("host").value.trim().replace(/\/$/, "");
+      if (!u.startsWith("http")) u = "http://" + u;
+      localStorage.setItem("re_server", u);
+      location.replace(u + "/mobile/");
+    }
+  </script>
+</body>
+</html>

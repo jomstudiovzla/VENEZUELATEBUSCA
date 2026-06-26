@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expediente — Red de Esperanza Venezuela</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/tricolor.css" />
+  <style>
+    body { padding: 0; }
+    .vd-wrap { padding: 1rem; max-width: 680px; margin: 0 auto; }
+    a.back { color: var(--vz-amarillo); font-size: 0.85rem; text-decoration: none; display: inline-block; margin: 0.75rem 1rem; }
+    .card { background: var(--panel); border-radius: 14px; overflow: hidden; border: 2px solid var(--vz-azul); box-shadow: 0 8px 32px rgba(0,36,125,0.1); }
+    .card.locked { border-color: var(--vz-rojo); }
+    .head { display: flex; gap: 1rem; padding: 1.25rem; align-items: flex-start; }
+    .photo { width: 88px; height: 88px; border-radius: 10px; object-fit: cover; background: #e2e8f0; }
+    .photo.ph { display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--muted); }
+    h1 { font-family: Merriweather, serif; font-size: 1.25rem; color: var(--vz-azul); }
+    .badge { display: inline-block; margin-top: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+    .badge.desaparecido { background: rgba(255,204,0,0.35); color: #92400e; }
+    .badge.localizado { background: rgba(22,163,74,0.2); color: var(--ok); }
+    .badge.fallecido { background: rgba(207,20,43,0.15); color: var(--vz-rojo); }
+    .body { padding: 0 1.25rem 1rem; font-size: 0.88rem; color: var(--muted); line-height: 1.5; }
+    .body strong { color: var(--text); }
+    .motto-box { margin: 0.75rem 1.25rem; padding: 0.65rem; background: linear-gradient(90deg, var(--vz-amarillo), #fff8dc); border-left: 4px solid var(--vz-rojo); border-radius: 8px; font-weight: 700; color: var(--vz-azul); font-size: 0.82rem; }
+    .intake-box { margin-top: 0.75rem; padding: 0.75rem; background: rgba(22,163,74,0.08); border-radius: 8px; border: 1px solid rgba(22,163,74,0.25); }
+    .intake-box h2 { font-size: 0.85rem; color: var(--ok); margin-bottom: 0.45rem; }
+    .actions { padding: 1rem 1.25rem 1.25rem; border-top: 1px solid #e2e8f0; }
+    .field { margin-bottom: 0.75rem; }
+    .field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 0.3rem; }
+    .field select, .field input, .field textarea { width: 100%; padding: 0.6rem 0.7rem; border-radius: 8px; border: 1px solid rgba(0,36,125,0.2); background: #fff; color: var(--text); font-size: 0.88rem; font-family: inherit; }
+    .btn-ingresar { width: 100%; padding: 1rem; font-size: 1.05rem; font-weight: 800; border: none; border-radius: 10px; background: var(--vz-amarillo); color: var(--vz-azul); cursor: pointer; margin-top: 0.5rem; }
+    .btn-fallecido { width: 100%; margin-top: 0.5rem; padding: 0.85rem; font-weight: 700; border: none; border-radius: 10px; background: var(--vz-rojo); color: #fff; cursor: pointer; position: relative; overflow: hidden; }
+    .lock-banner { display: none; padding: 0.75rem; background: rgba(207,20,43,0.1); border-radius: 8px; color: var(--vz-rojo); font-weight: 600; font-size: 0.85rem; margin-bottom: 0.75rem; }
+    .lock-banner.show { display: block; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .toast { position: fixed; top: 1rem; right: 1rem; padding: 0.75rem 1rem; border-radius: 10px; font-weight: 600; z-index: 99; }
+    .toast.ok { background: var(--vz-amarillo); color: var(--vz-azul); }
+    .toast.err { background: var(--vz-rojo); color: #fff; }
+  </style>
+</head>
+<body class="tricolor">
+  <nav class="bandera-nav"><div class="bandera-stripe amarillo"></div><div class="bandera-stripe azul"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div><div class="bandera-stripe rojo"></div></nav>
+  <header class="command-header" style="padding:0.65rem 1rem"><h1 style="font-size:1rem">Expediente — Red de Esperanza</h1></header>
+  <a class="back" href="/web">← Centro de Comando</a>
+  <div class="vd-wrap"><div id="content">Cargando expediente… Fuerza Venezuela</div></div>
+  <script>
+    const API = "";
+    const HOSPITAL_KEY = "triage_hospital_id";
+    const ESTADOS = [
+      { value: "estable", label: "Estable — puede caminar" },
+      { value: "herido_leve", label: "Herido leve" },
+      { value: "herido_grave", label: "Herido grave" },
+      { value: "critico", label: "Crítico — requiere urgencia" },
+      { value: "inconsciente", label: "Inconsciente" },
+      { value: "quemaduras", label: "Quemaduras" },
+      { value: "trauma", label: "Trauma / fracturas" },
+      { value: "desorientado", label: "Desorientado / confuso" },
+    ];
+    const ESTADO_LABELS = Object.fromEntries(ESTADOS.map(e => [e.value, e.label.split(" —")[0]]));
+    let holdTimer = null, victim = null, hospitals = [];
+
+    function toast(msg, ok) {
+      const t = document.createElement("div");
+      t.className = `toast ${ok ? "ok" : "err"}`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2800);
+    }
+    function forensicHeaders() {
+      const h = { "Content-Type": "application/json" };
+      const role = localStorage.getItem("forensic_role");
+      if (role) h["X-Forensic-Role"] = role;
+      return h;
+    }
+    function intakeBlock(v) {
+      if (v.estado_raw !== "localizado" && v.estado_raw !== "fallecido") return "";
+      const rows = [];
+      if (v.ingreso_shelter_name) rows.push(`<div><strong>Hospital:</strong> ${v.ingreso_shelter_name}</div>`);
+      if (v.estado_encontrado) rows.push(`<div><strong>Estado al encontrar:</strong> ${ESTADO_LABELS[v.estado_encontrado] || v.estado_encontrado}</div>`);
+      if (v.ubicacion_encontrado) rows.push(`<div><strong>Encontrado en:</strong> ${v.ubicacion_encontrado}</div>`);
+      if (v.descripcion_atencion) rows.push(`<div><strong>Atención:</strong> ${v.descripcion_atencion}</div>`);
+      return rows.length ? `<div class="intake-box"><h2>📋 Reporte de ingreso</h2>${rows.join("")}</div>` : "";
+    }
+    function reportForm(v) {
+      const hospOpts = hospitals.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      const estadoOpts = ESTADOS.map(e => `<option value="${e.value}">${e.label}</option>`).join("");
+      return `<div class="actions"><div class="field"><label>Hospital destino</label><select id="f-hospital">${hospOpts}</select></div>
+        <div class="field"><label>Estado al encontrar</label><select id="f-estado">${estadoOpts}</select></div>
+        <div class="field"><label>Ubicación hallazgo</label><input id="f-ubicacion" type="text" placeholder="Lugar exacto" /></div>
+        <div class="field"><label>Descripción atención</label><textarea id="f-descripcion" placeholder="Lesiones, medicación…"></textarea></div>
+        <button class="btn-ingresar" type="button" onclick="submitIngreso()">✓ Reportar encontrado — ¡Salvamos vidas!</button>
+        <button class="btn-fallecido" type="button" onpointerdown="startHold()" onpointerup="cancelHold()" onpointerleave="cancelHold()">Mantén 2s — Fallecido</button></div>`;
+    }
+    function render(v) {
+      const cls = v.estado_raw || "desaparecido";
+      const locked = v.is_locked || cls === "fallecido";
+      const photo = v.fotografia ? `<img class="photo" src="${v.fotografia}" alt="" />` : `<div class="photo ph">👤</div>`;
+      document.getElementById("content").innerHTML = `<div class="card ${locked ? "locked" : ""}">
+        <div class="motto-box">🇻🇪 Fuerza Venezuela — Juntos Salvaremos Vidas</div>
+        <div class="head">${photo}<div><h1>${v.nombre_completo}</h1><span class="badge ${cls}">${v.estado}</span>
+        ${v.cedula ? `<div style="font-size:0.8rem;color:var(--muted);margin-top:0.3rem">Cédula ${v.cedula}</div>` : ""}</div></div>
+        <div class="body">${v.descripcion_fisica ? `<p><strong>Descripción:</strong> ${v.descripcion_fisica}</p>` : ""}
+        ${(v.tatuajes||[]).length ? `<p><strong>Tatuajes:</strong> ${v.tatuajes.join(" · ")}</p>` : ""}
+        ${intakeBlock(v)}</div>
+        ${locked ? `<div class="lock-banner show">🔒 Candado forense — requiere ADMIN_FORENSE</div>` : reportForm(v)}
+      </div>`;
+    }
+    async function load() {
+      const id = new URLSearchParams(location.search).get("id");
+      if (!id) { document.getElementById("content").textContent = "ID requerido"; return; }
+      const [sr, hr] = await Promise.all([
+        fetch(`${API}/api/victims/search?q=${id}`),
+        fetch(`${API}/api/shelters`),
+      ]);
+      const s = await sr.json();
+      hospitals = ((await hr.json()).items || []).filter(x => x.shelter_type === "hospital" || x.shelter_type === "refugio");
+      victim = (s.items || []).find(x => String(x.id) === String(id)) || (s.items || [])[0];
+      if (!victim) { document.getElementById("content").textContent = "No encontrado"; return; }
+      render(victim);
+    }
+    async function submitIngreso() {
+      const payload = {
+        status: "localizado",
+        shelter_id: document.getElementById("f-hospital").value,
+        estado_encontrado: document.getElementById("f-estado").value,
+        ubicacion_encontrado: document.getElementById("f-ubicacion").value.trim() || null,
+        descripcion_atencion: document.getElementById("f-descripcion").value.trim() || null,
+      };
+      try {
+        const r = await fetch(`${API}/api/victims/${victim.id}/status`, { method: "PATCH", headers: forensicHeaders(), body: JSON.stringify(payload) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || "Error");
+        toast("¡Un venezolano más ha sido localizado!", true);
+        victim = d; render(d);
+      } catch (e) { toast(e.message, false); }
+    }
+    function startHold() { holdTimer = setTimeout(() => markFallecido(), 2000); }
+    function cancelHold() { clearTimeout(holdTimer); }
+    async function markFallecido() {
+      try {
+        const r = await fetch(`${API}/api/victims/${victim.id}/status`, {
+          method: "PATCH", headers: forensicHeaders(),
+          body: JSON.stringify({ status: "fallecido", shelter_id: hospitals[0]?.id, estado_encontrado: "fallecido_en_sitio" }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || "Error");
+        victim = d; render(d);
+        toast("Registro forense aplicado", true);
+      } catch (e) { toast(e.message, false); }
+    }
+    load();
+  </script>
+</body>
+</html>

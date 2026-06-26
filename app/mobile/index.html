@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a3a5c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Esperanza" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/mobile/manifest.json" />
+  <link rel="apple-touch-icon" href="/mobile/icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="/mobile/icons/icon-192.png" />
+  <title>Red de Esperanza — Móvil</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root { --bg:#0a1628; --panel:#152a42; --hope:#4db8a4; --ok:#3ecf8e; --urgent:#e85d5d; --warn:#e8b84d; --text:#eef4fa; --muted:#9bb4cc; }
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+    body { font-family: system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--text); height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
+    header { padding:0.65rem 1rem; background:var(--panel); border-bottom:2px solid var(--hope); display:flex; justify-content:space-between; align-items:center; }
+    header h1 { font-size:1rem; color:var(--hope); }
+    header .user { font-size:0.72rem; color:var(--muted); }
+    #map { flex:1; min-height:0; }
+    .tabs { display:flex; background:var(--panel); border-top:1px solid rgba(255,255,255,0.08); padding-bottom:env(safe-area-inset-bottom); }
+    .tab { flex:1; padding:0.7rem 0.3rem; text-align:center; font-size:0.68rem; color:var(--muted); border:none; background:none; cursor:pointer; }
+    .tab.active { color:var(--hope); border-top:2px solid var(--hope); }
+    .sheet { display:none; position:fixed; inset:0; top:auto; bottom:56px; background:var(--panel); z-index:800; overflow-y:auto; padding:1rem; padding-bottom:calc(1rem + env(safe-area-inset-bottom)); }
+    .sheet.show { display:block; }
+    .sheet h2 { font-size:1rem; color:var(--hope); margin-bottom:0.75rem; }
+    .field { margin-bottom:0.7rem; }
+    .field label { display:block; font-size:0.72rem; color:var(--muted); margin-bottom:0.25rem; }
+    .field input, .field select, .field textarea { width:100%; padding:0.65rem; border-radius:8px; border:1px solid rgba(77,184,164,0.35); background:var(--bg); color:var(--text); font-size:16px; }
+    .field textarea { min-height:72px; }
+    .btn { width:100%; padding:0.85rem; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer; margin-top:0.5rem; }
+    .btn.primary { background:var(--ok); color:#0a1628; }
+    .btn.hope { background:var(--hope); color:#0a1628; }
+    .btn.urgent { background:var(--urgent); color:#fff; }
+    .btn.ptt { height:88px; border-radius:50%; width:88px; margin:1rem auto; display:block; font-size:2rem; }
+    .btn.ptt.active { background:var(--urgent); box-shadow:0 0 24px rgba(232,93,93,0.5); }
+    .filters { display:flex; gap:0.3rem; flex-wrap:wrap; padding:0.5rem; background:rgba(0,0,0,0.3); position:absolute; top:52px; left:0; right:0; z-index:500; }
+    .chip { padding:0.3rem 0.55rem; border-radius:99px; font-size:0.68rem; border:1px solid rgba(77,184,164,0.35); background:var(--panel); color:var(--muted); }
+    .chip.on { border-color:var(--hope); color:var(--hope); }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:var(--ok); display:inline-block; animation:pulse 1.2s infinite; }
+    @keyframes pulse { 50% { opacity:0.3; } }
+    .login-wrap { position:fixed; inset:0; z-index:999; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+    .login-box { width:100%; max-width:360px; background:var(--panel); padding:1.5rem; border-radius:16px; border:2px solid var(--hope); }
+    .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--hope); padding:0.6rem 1rem; border-radius:8px; font-size:0.82rem; z-index:900; display:none; }
+    .toast.show { display:block; }
+    .match-banner { background:rgba(62,207,142,0.2); border:1px solid var(--ok); padding:0.5rem; border-radius:8px; font-size:0.78rem; margin-bottom:0.5rem; }
+    a.link { color:var(--hope); font-size:0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="login-wrap" id="login-wrap">
+    <div class="login-box">
+      <h1 style="color:var(--hope);margin-bottom:0.5rem">Red de Esperanza</h1>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem">App móvil — rescate y logística</p>
+      <div class="field"><label>Usuario</label><input id="login-user" value="JOM" autocapitalize="characters" /></div>
+      <div class="field"><label>Contraseña</label><input id="login-pass" type="password" value="Studio" /></div>
+      <button class="btn primary" type="button" onclick="doLogin()">Entrar</button>
+      <p id="lan-hint" style="margin-top:0.75rem;font-size:0.72rem;color:var(--hope);word-break:break-all"></p>
+      <p style="margin-top:0.5rem;font-size:0.72rem;color:var(--muted)">
+        <a class="link" href="/mobile/install.html">📲 Instalar en iPhone/Android</a> ·
+        <a class="link" href="/web">🇻🇪 Centro de Comando</a> ·
+        <a class="link" href="/familiar/">Portal familiar</a>
+      </p>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <header>
+    <div><h1>Red de Esperanza</h1><div class="user" id="user-label">—</div></div>
+    <div><span class="live-dot"></span> <span id="ws-status" style="font-size:0.68rem;color:var(--muted)">…</span></div>
+  </header>
+  <div class="filters" id="filters"></div>
+  <div id="map"></div>
+  <div class="sheet" id="sheet-testimony">
+    <h2>🎤 Testimonio de rescate</h2>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem">Si escuchaste a alguien decir su nombre entre escombros, regístralo aquí. Se busca en la base al instante.</p>
+    <div class="field"><label>Nombre que escuchó decir *</label><input id="t-name" placeholder="Ej: Jhohanyelismar Manrique" /></div>
+    <div class="field"><label>Cédula (si la dijo)</label><input id="t-cedula" inputmode="numeric" /></div>
+    <div class="field"><label>¿Dónde lo escuchó? *</label><input id="t-location" placeholder="Ej: Altamira, edificio Petunia" /></div>
+    <div class="field"><label>Estado de la persona</label>
+      <select id="t-estado"><option value="estable">Estable</option><option value="herido_grave">Herido grave</option><option value="critico">Crítico</option><option value="inconsciente">Inconsciente</option></select>
+    </div>
+    <div class="field"><label>¿A dónde lo trasladan?</label>
+      <select id="t-dest-type"><option value="hospital">Hospital</option><option value="acopio">Centro de acopio</option><option value="refugio">Refugio</option><option value="plaza">Plaza / punto seguro</option></select>
+    </div>
+    <div class="field"><label>Nombre del destino</label><input id="t-dest-name" placeholder="Hospital Vargas, Acopio Altamira…" /></div>
+    <div class="field"><label>Notas</label><textarea id="t-notes" placeholder="Lo que dijo, ropa, lesiones visibles…"></textarea></div>
+    <button class="btn hope" type="button" onclick="captureGpsThenSubmit()">📍 GPS + Registrar testimonio</button>
+  </div>
+  <div class="sheet" id="sheet-ptt">
+    <h2>📻 Walkie BLE</h2>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem">Transmisión por Bluetooth — no usa datos móviles. Conecta un radio BLE o auricular compatible.</p>
+    <p id="ble-status" style="font-size:0.78rem;color:var(--warn);margin-bottom:0.5rem">Sin conectar</p>
+    <button class="btn hope" type="button" onclick="connectBle()">Conectar Bluetooth</button>
+    <button class="btn ptt" id="ptt-btn" type="button"
+      onpointerdown="startPtt()" onpointerup="stopPtt()" onpointerleave="stopPtt()">🎙️</button>
+    <p style="text-align:center;font-size:0.72rem;color:var(--muted)">Mantén presionado para hablar</p>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" type="button" data-tab="map" onclick="showTab('map')">🗺️ Mapa</button>
+    <button class="tab" type="button" data-tab="testimony" onclick="showTab('testimony')">🎤 Testimonio</button>
+    <button class="tab" type="button" data-tab="ptt" onclick="showTab('ptt')">📻 Walkie</button>
+  </nav>
+  <script>
+    const API = "";
+    const SYNC_MS = 250;
+    let token = localStorage.getItem("re_token");
+    let user = JSON.parse(localStorage.getItem("re_user") || "null");
+    let map, pointLayer, volunteerLayer;
+    let ws, gpsWatch;
+    let lastPos = null;
+    let activeCategories = new Set();
+    let bleDevice = null;
+
+    const CAT_LABELS = {
+      acopio:"Acopio", hospital:"Hospital", refugio:"Refugio", energia:"Energía", senal:"Señal",
+      suministros:"Suministros", medica:"Médica", peligro:"Peligro", movilidad:"Movilidad",
+      ofrecen:"Ofrecen", solicitan:"Solicitan", plaza:"Plaza"
+    };
+    const CAT_COLORS = {
+      acopio:"#3b82f6", hospital:"#ef4444", refugio:"#8b5cf6", energia:"#f59e0b", senal:"#06b6d4",
+      suministros:"#10b981", medica:"#ec4899", peligro:"#dc2626", movilidad:"#6366f1",
+      ofrecen:"#22c55e", solicitan:"#f97316", plaza:"#a855f7"
+    };
+
+    function toast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2800);
+    }
+    function $(id) { return document.getElementById(id); }
+    function authHeaders() {
+      return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    }
+
+    async function doLogin() {
+      try {
+        const r = await fetch(`${API}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: $("login-user").value.trim(), password: $("login-pass").value }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || "Error");
+        token = d.token;
+        user = d.user;
+        localStorage.setItem("re_token", token);
+        localStorage.setItem("re_user", JSON.stringify(user));
+        $("login-wrap").style.display = "none";
+        $("user-label").textContent = `${user.display_name} · ${user.role}`;
+        initApp();
+      } catch (e) { toast(e.message); }
+    }
+
+    function showTab(name) {
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      $("sheet-testimony").classList.toggle("show", name === "testimony");
+      $("sheet-ptt").classList.toggle("show", name === "ptt");
+      if (name === "map") {
+        $("sheet-testimony").classList.remove("show");
+        $("sheet-ptt").classList.remove("show");
+        setTimeout(() => map?.invalidateSize(), 200);
+      }
+    }
+
+    function initMap() {
+      map = L.map("map", { zoomControl: false }).setView([10.49, -66.85], 11);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 18 }).addTo(map);
+      pointLayer = L.layerGroup().addTo(map);
+      volunteerLayer = L.layerGroup().addTo(map);
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+    }
+
+    function renderFilters(categories) {
+      const all = `<button type="button" class="chip on" onclick="filterAll()">Todos</button>`;
+      const chips = categories.map(c =>
+        `<button type="button" class="chip" data-c="${c}" onclick="toggleCat('${c}')">${CAT_LABELS[c] || c}</button>`
+      ).join("");
+      $("filters").innerHTML = all + chips;
+    }
+
+    function filterAll() {
+      activeCategories.clear();
+      document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", !c.dataset.c));
+      loadMapPoints();
+    }
+    function toggleCat(c) {
+      if (activeCategories.has(c)) activeCategories.delete(c);
+      else activeCategories.add(c);
+      document.querySelectorAll(".chip[data-c]").forEach(el => el.classList.toggle("on", activeCategories.has(el.dataset.c)));
+      loadMapPoints();
+    }
+
+    async function loadMapPoints() {
+      try {
+        const r = await fetch(`${API}/api/map/points`);
+        const d = await r.json();
+        if (d.categories) renderFilters(d.categories);
+        pointLayer.clearLayers();
+        let items = d.items || [];
+        if (activeCategories.size) items = items.filter(p => activeCategories.has(p.category));
+        items.forEach(p => {
+          const color = CAT_COLORS[p.category] || "#9ca3af";
+          L.circleMarker([p.lat, p.lng], { radius: 7, fillColor: color, color:"#fff", weight:1, fillOpacity:0.9 })
+            .bindPopup(`<b>${p.name}</b><br><small>${p.category}</small><br>${p.address || ""}<br><a href="${p.maps_url}" target="_blank">Google Maps</a>`)
+            .addTo(pointLayer);
+        });
+      } catch {}
+    }
+
+    async function loadVolunteers() {
+      try {
+        const r = await fetch(`${API}/api/volunteer/positions`);
+        const d = await r.json();
+        volunteerLayer.clearLayers();
+        (d.items || []).forEach(v => {
+          L.marker([v.lat, v.lng], {
+            icon: L.divIcon({ className:"", html:`<div style="background:#4db8a4;width:12px;height:12px;border-radius:50%;border:2px solid #fff"></div>` })
+          }).bindPopup(`<b>${v.display_name}</b><br>${v.role}`).addTo(volunteerLayer);
+        });
+      } catch {}
+    }
+
+    function startGpsTracking() {
+      if (!navigator.geolocation) return;
+      gpsWatch = navigator.geolocation.watchPosition(
+        pos => {
+          lastPos = pos;
+          if (token) pushPosition(pos);
+        },
+        () => toast("Activa permiso GPS en ajustes"),
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
+      );
+    }
+
+    async function pushPosition(pos) {
+      try {
+        await fetch(`${API}/api/volunteer/position`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy_m: pos.coords.accuracy,
+            heading: pos.coords.heading,
+          }),
+        });
+      } catch {}
+    }
+
+    function captureGpsThenSubmit() {
+      const submit = async (lat, lng, acc) => {
+        const payload = {
+          heard_name: $("t-name").value.trim(),
+          heard_cedula: $("t-cedula").value.trim() || null,
+          location_text: $("t-location").value.trim(),
+          lat, lng,
+          gps_accuracy_m: acc,
+          destination_type: $("t-dest-type").value,
+          destination_name: $("t-dest-name").value.trim() || null,
+          estado_persona: $("t-estado").value,
+          notes: $("t-notes").value.trim() || null,
+        };
+        if (!payload.heard_name || !payload.location_text) { toast("Nombre y ubicación obligatorios"); return; }
+        try {
+          const r = await fetch(`${API}/api/volunteer/testimony`, {
+            method: "POST", headers: authHeaders(), body: JSON.stringify(payload),
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.detail || "Error");
+          if (d.matched_victim_id) toast(`✓ Coincidencia BD #${d.matched_victim_id}`);
+          else toast("✓ Testimonio registrado");
+          showTab("map");
+        } catch (e) { toast(e.message); }
+      };
+      if (lastPos) return submit(lastPos.coords.latitude, lastPos.coords.longitude, lastPos.coords.accuracy);
+      navigator.geolocation.getCurrentPosition(
+        p => submit(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
+        () => toast("Permiso GPS requerido"),
+        { enableHighAccuracy: true }
+      );
+    }
+
+    async function connectBle() {
+      if (!navigator.bluetooth) { toast("Bluetooth no disponible"); return; }
+      try {
+        bleDevice = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+        await bleDevice.gatt.connect();
+        $("ble-status").textContent = `Conectado: ${bleDevice.name}`;
+        toast("BLE conectado");
+      } catch (e) { $("ble-status").textContent = e.message || "Cancelado"; }
+    }
+    function startPtt() {
+      $("ptt-btn").classList.add("active");
+      $("ble-status").textContent = "🎙️ Transmitiendo…";
+      if (ws?.readyState === 1) ws.send(JSON.stringify({ event: "ptt_start", user: user?.display_name }));
+    }
+    function stopPtt() {
+      $("ptt-btn").classList.remove("active");
+      $("ble-status").textContent = bleDevice ? `Conectado: ${bleDevice.name}` : "Sin conectar";
+      if (ws?.readyState === 1) ws.send(JSON.stringify({ event: "ptt_end", user: user?.display_name }));
+    }
+
+    function connectWs() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/ws/dashboard`);
+      ws.onopen = () => { $("ws-status").textContent = "En vivo"; };
+      ws.onclose = () => { $("ws-status").textContent = "Reconectando…"; setTimeout(connectWs, 2000); };
+      ws.onmessage = e => {
+        const msg = JSON.parse(e.data);
+        if (["map_points_synced","live_position","testimony_created","testimony_match","acopio_verified"].includes(msg.event)) {
+          loadMapPoints();
+          loadVolunteers();
+        }
+        if (msg.event === "testimony_match") toast(`🔔 Match: ${msg.data.heard_name}`);
+      };
+    }
+
+    function initApp() {
+      initMap();
+      connectWs();
+      startGpsTracking();
+      loadMapPoints();
+      loadVolunteers();
+      setInterval(() => { loadMapPoints(); loadVolunteers(); }, SYNC_MS);
+    }
+
+    if (token && user) {
+      $("login-wrap").style.display = "none";
+      $("user-label").textContent = `${user.display_name} · ${user.role}`;
+      initApp();
+    }
+
+    $("lan-hint").textContent = `Abre en el teléfono: ${location.protocol}//${location.host}/mobile/`;
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/mobile/sw.js", { scope: "/" }).catch(() => {});
+    }
+  </script>
+</body>
+</html>
