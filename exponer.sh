@@ -36,5 +36,5 @@ fi
 echo "No se encontró cloudflared ni ngrok."
 echo "Opciones:"
 echo "  1) brew install cloudflared && ./exponer.sh"
-echo "  2) Desplegar en Render: ver README sección Despliegue"
+echo "  2) Desplegar en Render: ./desplegar-render.sh"
 exit 1

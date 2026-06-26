@@ -36,6 +36,8 @@
     header .sub { font-size: 0.8rem; color: var(--muted); }
     .stats { display: flex; gap: 1.2rem; font-size: 0.78rem; flex-wrap: wrap; }
     .stats strong { color: var(--hope-bright); }
+    .emergencias { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; }
+    .emergencias strong { color: var(--warn); }
     .ws { padding: 0.2rem 0.55rem; border-radius: 99px; font-size: 0.68rem; }
     .ws.on { background: rgba(62,207,142,0.2); color: var(--ok); }
     .ws.off { background: rgba(232,93,93,0.2); color: var(--urgent); }
@@ -133,6 +135,7 @@
     <div>
       <h1>Red de Esperanza</h1>
       <div class="sub">Tablero de Esperanza · Rescate, Acopio y Refugios · Venezuela 2026</div>
+      <div class="emergencias" id="emergencias">Emergencias: cargando…</div>
     </div>
     <div class="stats" id="stats">Cargando…</div>
     <span id="ws-pill" class="ws off">WS desconectado</span>
@@ -261,6 +264,16 @@
       } catch {}
     }
 
+    async function loadEmergencias() {
+      try {
+        const d = await (await fetch(`${API}/api/emergencias`)).json();
+        const nums = (d.telefonos_emergencia || []).map(t => `${t.operadora} <strong>${t.numero}</strong>`).join(" · ");
+        $("emergencias").innerHTML = nums ? `Emergencias: ${nums}` : "";
+      } catch {
+        $("emergencias").textContent = "";
+      }
+    }
+
     async function loadMissions() {
       const { items } = await (await fetch(`${API}/api/missions`)).json();
       missionLayer.clearLayers();
@@ -385,6 +398,7 @@
     initMap();
     connectWs();
     loadStats();
+    loadEmergencias();
     loadMissions();
     loadAcopio();
     loadSurvivors();

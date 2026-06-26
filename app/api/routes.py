@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.connection_manager import dashboard_ws
-from app.core.database import async_session_factory, get_session
+from app.core.database import get_session
 from app.models.models import (
     Inventory,
     InventoryStatus,
@@ -106,38 +108,36 @@ class MissionAccept(BaseModel):
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-async def _after_survivor(session: AsyncSession, survivor: Survivor, background: BackgroundTasks) -> None:
+async def _after_survivor(session: AsyncSession, survivor: Survivor) -> None:
     shelter = await session.get(Shelter, survivor.shelter_id)
     if shelter:
         shelter.current_occupancy += 1
-        await session.flush()
+    await session.flush()
+    await session.commit()
 
-    async def _match_and_broadcast():
-        async with async_session_factory() as s:
-            matches = await run_matching_cycle(s)
-            await s.commit()
-            for m in matches:
-                await dashboard_ws.broadcast(
-                    "possible_match",
-                    {
-                        "report_name": m.report_name,
-                        "survivor_name": m.survivor_name,
-                        "score": m.score,
-                        "tokens": m.matched_tokens,
-                    },
-                )
+    matches = await run_matching_cycle(session)
+    await session.commit()
+
+    for m in matches:
         await dashboard_ws.broadcast(
-            "survivor_registered",
+            "possible_match",
             {
-                "id": survivor.id,
-                "name": survivor.name,
-                "shelter": shelter.name if shelter else "",
-                "estado_medico": survivor.estado_medico,
-                "caracteristicas": survivor.caracteristicas_fisicas,
+                "report_name": m.report_name,
+                "survivor_name": m.survivor_name,
+                "score": m.score,
+                "tokens": m.matched_tokens,
             },
         )
-
-    background.add_task(_match_and_broadcast)
+    await dashboard_ws.broadcast(
+        "survivor_registered",
+        {
+            "id": survivor.id,
+            "name": survivor.name,
+            "shelter": shelter.name if shelter else "",
+            "estado_medico": survivor.estado_medico,
+            "caracteristicas": survivor.caracteristicas_fisicas,
+        },
+    )
 
 
 def _shelter_dict(s: Shelter) -> dict:
@@ -167,6 +167,15 @@ async def health():
         "mode": "logistica_humanitaria",
         "ws_clients": dashboard_ws.active_count,
     }
+
+
+@router.get("/api/emergencias")
+async def emergencias_venezuela():
+    """Teléfonos y recursos de emergencia (config estática)."""
+    path = Path(__file__).resolve().parents[2] / "config" / "emergencias_venezuela.json"
+    if not path.is_file():
+        raise HTTPException(404, "Configuración de emergencias no disponible")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @router.get("/api/dashboard")
@@ -278,7 +287,6 @@ async def update_inventory(item_id: str, payload: InventoryUpdate, session: Asyn
 @router.post("/api/survivors", status_code=201)
 async def register_survivor(
     payload: SurvivorCreate,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
 ):
     if not await session.get(Shelter, payload.shelter_id):
@@ -305,7 +313,7 @@ async def register_survivor(
     )
     session.add(survivor)
     await session.flush()
-    await _after_survivor(session, survivor, background_tasks)
+    await _after_survivor(session, survivor)
     return {
         "id": survivor.id,
         "sync_status": "synced",
@@ -317,7 +325,6 @@ async def register_survivor(
 @router.post("/api/sync/batch", status_code=201)
 async def sync_survivors_batch(
     payload: SurvivorSyncBatch,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
 ):
     """Sincroniza cola offline de la PWA (idempotente por client_sync_id)."""
@@ -342,7 +349,7 @@ async def sync_survivors_batch(
         )
         session.add(survivor)
         await session.flush()
-        await _after_survivor(session, survivor, background_tasks)
+        await _after_survivor(session, survivor)
         results.append({"client_sync_id": item.client_sync_id, "status": "synced", "id": survivor.id})
     return {"synced": len([r for r in results if r["status"] == "synced"]), "results": results}
 

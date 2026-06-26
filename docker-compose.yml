@@ -1,14 +1,14 @@
 services:
-  venezuela-te-busca:
+  red-esperanza:
     build: .
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
       - HOST=0.0.0.0
-      - SCRAPER_POLL_INTERVAL=20
-      - TERREMOTO_POLL_INTERVAL=20
-      - DATABASE_URL=sqlite+aiosqlite:////data/ojo_de_dios.db
+      - DATABASE_URL=sqlite+aiosqlite:////data/red_esperanza.db
+      - MATCH_THRESHOLD=0.55
+      - MATCHER_INTERVAL_SECONDS=45
     volumes:
       - app_data:/data
     restart: unless-stopped
@@ -17,7 +17,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 90s
+      start_period: 45s
 
 volumes:
   app_data:

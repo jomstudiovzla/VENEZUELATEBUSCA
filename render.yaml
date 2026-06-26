@@ -1,9 +1,9 @@
-# Despliegue en Render.com — conecta tu repo de GitHub
-# https://dashboard.render.com/ → New → Blueprint → selecciona este repo
+# Despliegue en Render.com — Red de Esperanza
+# https://dashboard.render.com/ → New → Blueprint
 
 services:
   - type: web
-    name: venezuela-te-busca
+    name: red-de-esperanza
     runtime: docker
     plan: starter
     region: virginia
@@ -12,7 +12,7 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     disk:
-      name: venezuela-data
+      name: red-esperanza-data
       mountPath: /data
       sizeGB: 2
     envVars:
@@ -20,13 +20,11 @@ services:
         value: 8000
       - key: HOST
         value: 0.0.0.0
-      - key: SCRAPER_POLL_INTERVAL
-        value: 20
-      - key: TERREMOTO_POLL_INTERVAL
-        value: 20
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:////data/ojo_de_dios.db
-      - key: PROCESS_PHOTO_EMBEDDINGS
-        value: false
+        value: sqlite+aiosqlite:////data/red_esperanza.db
+      - key: MATCH_THRESHOLD
+        value: "0.55"
+      - key: MATCHER_INTERVAL_SECONDS
+        value: "45"
       - key: PYTHONUNBUFFERED
         value: "1"

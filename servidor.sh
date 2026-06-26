@@ -8,18 +8,13 @@ HOST="${HOST:-0.0.0.0}"
 WORKERS="${WEB_CONCURRENCY:-1}"
 
 if [ -d /data ] && [ -w /data ]; then
-  export DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:////data/ojo_de_dios.db}"
-  for item in ojo_de_dios.db reference_photos building_photos; do
-    if [ ! -e "/data/$item" ] && [ -e "./$item" ]; then
-      echo "▸ Copiando $item → /data/"
-      cp -a "./$item" "/data/" 2>/dev/null || true
-    fi
-  done
-  mkdir -p /data/reference_photos /data/building_photos
-  ln -sfn /data/reference_photos ./reference_photos 2>/dev/null || true
-  ln -sfn /data/building_photos ./building_photos 2>/dev/null || true
-  if [ -f /data/ojo_de_dios.db ]; then
-    ln -sfn /data/ojo_de_dios.db ./ojo_de_dios.db 2>/dev/null || true
+  export DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:////data/red_esperanza.db}"
+  if [ ! -e /data/red_esperanza.db ] && [ -e ./red_esperanza.db ]; then
+    echo "▸ Copiando red_esperanza.db → /data/"
+    cp -a ./red_esperanza.db /data/ 2>/dev/null || true
+  fi
+  if [ -f /data/red_esperanza.db ]; then
+    ln -sfn /data/red_esperanza.db ./red_esperanza.db 2>/dev/null || true
   fi
 fi
 
@@ -37,9 +32,8 @@ if [ ! -f .env ] && [ -f .env.example ]; then
   cp .env.example .env
 fi
 
-echo "▸ Venezuela te Busca — producción"
+echo "▸ Red de Esperanza — producción"
 echo "  Host: $HOST  Puerto: $PORT  Workers: $WORKERS"
-echo "  Tiempo real: scraper=${SCRAPER_POLL_INTERVAL:-20}s terremoto=${TERREMOTO_POLL_INTERVAL:-20}s"
 
 exec uvicorn main:app \
   --host "$HOST" \

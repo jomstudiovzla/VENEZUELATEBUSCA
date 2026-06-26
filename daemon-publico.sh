@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mantiene Venezuela te Busca + túnel público siempre activos (auto-reinicio)
+# Mantiene Red de Esperanza + túnel público con auto-reinicio
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
@@ -16,7 +16,7 @@ start_server() {
   if curl -sf "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
     return 0
   fi
-  log "Iniciando servidor en puerto $PORT…"
+  log "Iniciando Red de Esperanza en puerto $PORT…"
   lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
   nohup "$ROOT/servidor.sh" >>"$LOG_DIR/server.log" 2>&1 &
   echo $! >"$PID_DIR/server.pid"
@@ -65,7 +65,7 @@ start_tunnel() {
 }
 
 watch_loop() {
-  log "Daemon Venezuela te Busca activo"
+  log "Daemon Red de Esperanza activo"
   while true; do
     start_server || true
     if ! start_tunnel; then

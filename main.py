@@ -19,6 +19,7 @@ from app.core.connection_manager import dashboard_ws
 from app.models.models import (
     Inventory,
     InventoryStatus,
+    MissingReport,
     Mission,
     MissionStatus,
     Shelter,
@@ -114,6 +115,26 @@ async def _seed_if_empty() -> None:
             ),
         ]
         session.add_all(missions)
+
+        reports = [
+            MissingReport(
+                seeker_name="María González",
+                seeker_contact="0414-555-1001",
+                missing_person_name="Carlos Rodríguez",
+                description="Hombre de 42 años, camisa azul, pantalón jean oscuro, tatuaje de águila en el brazo derecho.",
+                last_seen_location="Sabana Grande, Caracas",
+                physical_traits={"ropa": "camisa azul jean oscuro", "tatuajes": "águila brazo derecho", "estatura": "1.75m"},
+            ),
+            MissingReport(
+                seeker_name="Ana Pérez",
+                seeker_contact="0424-555-2002",
+                missing_person_name="Desconocido — anciana",
+                description="Mujer mayor, pelo blanco, cicatriz en la frente, vestido floral verde.",
+                last_seen_location="La Guaira",
+                physical_traits={"ropa": "vestido floral verde", "cicatrices": "frente", "pelo": "blanco"},
+            ),
+        ]
+        session.add_all(reports)
         await session.commit()
         logger.info("Datos iniciales de demostración cargados")
 

@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Instala hosting público 24/7: servidor + túnel con auto-reinicio
+# Instala hosting público 24/7: Red de Esperanza + túnel con auto-reinicio
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-LABEL="com.venezuelatebusca.daemon"
-PLIST_SRC="$ROOT/com.venezuelatebusca.daemon.plist"
+LABEL="com.redesperanza.daemon"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
-WRAPPER="$HOME/bin/venezuelatebusca-daemon.sh"
+WRAPPER="$HOME/bin/redesperanza-daemon.sh"
 
 mkdir -p "$HOME/bin" "$ROOT/logs" "$ROOT/.run"
 chmod +x "$ROOT/daemon-publico.sh" "$ROOT/desplegar-render.sh" "$ROOT/servidor.sh" "$ROOT/instalar-daemon.sh"
@@ -20,11 +19,35 @@ exec "\$ROOT/daemon-publico.sh" run
 EOF
 chmod +x "$WRAPPER"
 
-cp "$PLIST_SRC" "$PLIST_DST"
+cat >"$PLIST_DST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$WRAPPER</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>$ROOT</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$ROOT/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>$ROOT/logs/launchd.err.log</string>
+</dict>
+</plist>
+EOF
 UID_NUM="$(id -u)"
 DOMAIN="gui/$UID_NUM"
 
 launchctl bootout "$DOMAIN" "$LABEL" 2>/dev/null || true
+launchctl bootout "$DOMAIN" "com.venezuelatebusca.daemon" 2>/dev/null || true
 if launchctl bootstrap "$DOMAIN" "$PLIST_DST" 2>/dev/null; then
   launchctl enable "$DOMAIN/$LABEL" 2>/dev/null || true
   launchctl kickstart -k "$DOMAIN/$LABEL" 2>/dev/null || true
@@ -41,11 +64,11 @@ for _ in $(seq 1 35); do
   if [ -f "$ROOT/PUBLIC_URL.txt" ] && [ -s "$ROOT/PUBLIC_URL.txt" ]; then
     URL="$(head -1 "$ROOT/PUBLIC_URL.txt")"
     echo ""
-    echo "✓ Venezuela te Busca — URL pública:"
+    echo "✓ Red de Esperanza — URL pública:"
     echo "  $URL"
     echo ""
-    echo "  Visor: $URL/static/visor.html"
-    echo "  Health: $URL/health"
+    echo "  Dashboard: $URL/"
+    echo "  Health:    $URL/health"
     exit 0
   fi
   sleep 1

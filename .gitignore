@@ -10,26 +10,27 @@ __pycache__/
 *.pyo
 .DS_Store
 
-# SQLite temporal
-ojo_de_dios.db-shm
-ojo_de_dios.db-wal
-red_esperanza.db-shm
-red_esperanza.db-wal
+# Bases de datos locales
+*.db
+*.db-shm
+*.db-wal
 
-# Snapshots de cámaras en runtime (opcional, se regeneran)
+# Fotos legacy (no usadas por Red de Esperanza)
+building_photos/*
+!building_photos/.gitkeep
+reference_photos/*
+!reference_photos/.gitkeep
 camera_snapshots/*
 !camera_snapshots/.gitkeep
 snapshots/*
 !snapshots/.gitkeep
-
-# Uploads en runtime (evidencia voluntaria)
 uploads/*
 !uploads/.gitkeep
 
 # Logs de runtime
 camera_detections.jsonl
 
-# Modelos / pesos grandes (opcional)
+# Modelos / pesos ML (legacy)
 *.pt
 *.pth
 *.onnx
